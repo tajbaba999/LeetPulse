@@ -1,0 +1,56 @@
+{
+  "name": "express-api-starter-ts",
+  "version": "2.0.0",
+  "description": "A basic starter for an express.js v5 API with Typescript",
+  "author": "CJ R. <cj@null.computer> (https://w3cj.now.sh)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/w3cj/express-api-starter-ts.git"
+  },
+  "keywords": [],
+  "main": "src/index.ts",
+  "scripts": {
+    "start": "node --env-file=.env dist/src/index.js",
+    "dev": "tsx watch --env-file=.env src/index.ts",
+    "build": "tsc",
+    "lint": "eslint --fix src test",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.8.0",
+    "@prisma/client": "^7.8.0",
+    "bcrypt": "^6.0.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
+    "express": "^5.1.0",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.10.1",
+    "pg": "^8.22.0",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "^6.2.0",
+    "@types/bcrypt": "^6.0.0",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.5",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/morgan": "^1.9.10",
+    "@types/node": "^24.9.2",
+    "@types/pg": "^8.20.0",
+    "@types/supertest": "^6.0.3",
+    "eslint": "^9.38.0",
+    "eslint-plugin-format": "^1.0.2",
+    "nodemon": "^3.1.14",
+    "prisma": "^7.8.0",
+    "supertest": "^7.1.4",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.6"
+  }
+}
