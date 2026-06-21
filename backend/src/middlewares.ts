@@ -1,12 +1,10 @@
 import type { NextFunction, Request, Response } from "express";
 
-import jwt from "jsonwebtoken";
-
 import type ErrorResponse from "./interfaces/error-response.js";
 
 import { env } from "./env.js";
-import { verifyAccessToken, verifyRefreshToken } from "./utils/tokens.js";
 import { refreshTokenSchema } from "./validators/refreshtoken.validator.js";
+import { verifyAccessToken } from "./utils/tokens.js";
 
 export function notFound(req: Request, res: Response, next: NextFunction) {
   res.status(404);
@@ -25,51 +23,30 @@ export function errorHandler(err: Error, req: Request, res: Response<ErrorRespon
 
 export function authenticateToken(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
-  const accessToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : undefined;
-
-  if (!accessToken) {
-    return res.status(401).json({ message: "Access token is required" });
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ message: "Unauthorized" });
   }
-
+  const token = authHeader.split(" ")[1];
   try {
-    const { userId, email } = verifyAccessToken(accessToken);
-    req.user = { userId, email };
-    return next();
-  }
-  catch (error) {
-    if (error instanceof jwt.TokenExpiredError) {
-      return res.status(401).json({ message: "Access token expired, call /refresh-token to get a new one" });
-    }
-    return res.status(401).json({ message: "Invalid access token" });
+    const payload = verifyAccessToken(token);
+    req.user = payload;
+    next();
+  } catch {
+    return res.status(401).json({ message: "Invalid or expired token" });
   }
 }
-
-// Alias for backwards compatibility
-export const authicateToken = authenticateToken;
 
 export function refreshTokenValidaiton(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
   if (!authHeader) {
     return res.status(401).json({ error: "Unauthorized" });
   }
+  const token = authHeader.split(" ")[0];
+  const result = refreshTokenSchema.safeParse(token);
 
-  // Extract raw token supporting both "Bearer <token>" and raw "<token>"
-  const parts = authHeader.split(" ");
-  const rawToken = parts.length > 1 ? parts[1] : parts[0];
-
-  const result = refreshTokenSchema.safeParse({ refreshToken: rawToken });
   if (!result.success) {
-    return res.status(422).json({ error: "Invalid refresh token format" });
+    return res.status(422).json({ error: "Invalid refresh token" });
   }
 
   const { refreshToken } = result.data;
-
-  try {
-    const payload = verifyRefreshToken(refreshToken);
-    req.user = payload;
-    return next();
-  }
-  catch (error) {
-    return res.status(401).json({ error: "Invalid or expired refresh token" });
-  }
 }
