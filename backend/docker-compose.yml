@@ -60,6 +60,9 @@ services:
     depends_on:
       - loki
 
+networks:
+  bullmq-network:
+
 volumes:
   grafana_data:
   redis_data:

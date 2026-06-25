@@ -3,8 +3,8 @@ import { env } from "../env.js";
 
 const lokiTransport = pinoLoki({
     batching: {
-        maxBufferSize: 1000,
-        interval: 5,
+        maxBufferSize: 10000,
+        interval: 5000,
     },
     host: 'http://loki:3100',
     basicAuth: {

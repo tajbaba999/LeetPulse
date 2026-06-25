@@ -8,7 +8,6 @@ import Singin from "./auth/signin.js"
 import CodingProfile from "./codingprofile/codingprofile.js"
 import Me from "./me.js";
 import logger from "../utils/logger.js";
-import lokiTransport from "../utils/loki-transport.js";
 
 
 const router = express.Router();
@@ -27,8 +26,6 @@ router.use(authenticateToken);
 
 router.use("/me", Me);
 router.use('/codingprofile', CodingProfile)
-
-logger.stream(lokiTransport);
 
 export default router;
 
