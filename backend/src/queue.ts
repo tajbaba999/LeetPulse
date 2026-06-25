@@ -15,5 +15,4 @@ export const redisConnection = parseRedisUrl(
   process.env.REDIS_URL ?? "redis://localhost:6379",
 );
 
-// Re-export Queue and Worker so feature files don't need to import bullmq directly
 export { Queue, Worker };
