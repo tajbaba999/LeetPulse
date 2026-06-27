@@ -32,6 +32,8 @@ services:
       REDIS_URL: redis://redis:6379
     ports:
       - "3000:3000"
+    networks:
+      - bullmq-network
 
   loki:
     image: grafana/loki:latest
@@ -41,6 +43,8 @@ services:
       - ./loki-config.yml:/etc/loki/local-config.yml
       - loki_data:/loki
     command: -config.file=/etc/loki/local-config.yml
+    networks:
+      - bullmq-network
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:3100/ready" ]
       interval: 10s

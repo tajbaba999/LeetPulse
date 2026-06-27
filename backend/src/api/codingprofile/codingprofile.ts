@@ -6,24 +6,6 @@ import type { Platform } from "../../types/coding-profiles.js";
 
 const platforms: Platform[] = ["leetcode", "geeksforgeeks", "codechef", "codeforces"];
 
-function extractUsername(url: string, platform: Platform): string {
-    const pathname = new URL(url).pathname;
-    const segments = pathname.split("/").filter(Boolean);
-
-    switch (platform) {
-        case "leetcode":
-            return segments[segments.length - 1] ?? segments[0];
-        case "codeforces":
-            return segments[segments.length - 1] ?? segments[0];
-        case "codechef":
-            return segments[segments.length - 1] ?? segments[0];
-        case "geeksforgeeks":
-            return segments[segments.length - 2] ?? segments[segments.length - 1];
-        default:
-            return segments[segments.length - 1] ?? segments[0];
-    }
-}
-
 const router = Express.Router();
 
 router.post("/", async (req, res) => {
@@ -56,13 +38,12 @@ router.post("/", async (req, res) => {
             data: { userId: user.userId, leetcode, codeforces, codechef, hackerrank, geeksforgeeks },
         });
 
-        // Queue sync jobs for each platform that has a URL provided.
+        // Queue sync jobs for each platform that has a username provided.
         // Priority 3 = signup full sync (lower than manual update).
         // jobId deduplicates: if this user+platform job is already queued/active, the add is a no-op.
         for (const platform of platforms) {
-            const url = allprofiles.data[platform];
-            if (url) {
-                const username = extractUsername(url, platform);
+            const username = allprofiles.data[platform];
+            if (username) {
                 const queue = getQueueForPlatform(platform);
                 await queue.add(`sync-${platform}`, {
                     userId: user.userId,
@@ -127,9 +108,8 @@ router.put("/", async (req, res) => {
         // Priority 1 = manual "Update Profile" click (highest priority per architecture).
         // jobId deduplicates: replaces any existing queued job for this user+platform.
         for (const platform of platforms) {
-            const url = parsed.data[platform];
-            if (url) {
-                const username = extractUsername(url, platform);
+            const username = parsed.data[platform];
+            if (username) {
                 const queue = getQueueForPlatform(platform);
                 await queue.add(`sync-${platform}`, {
                     userId: user.userId,

@@ -27,22 +27,22 @@ const defaultJobOptions = {
 //   CodeChef: 1/s  (API + scrape)
 //   GFG: 1/s       (Profile scrape)
 
-export const leetcodeQueue = new Queue("sync:leetcode", {
+export const leetcodeQueue = new Queue("sync-leetcode", {
     connection,
     defaultJobOptions,
 });
 
-export const codeforcesQueue = new Queue("sync:codeforces", {
+export const codeforcesQueue = new Queue("sync-codeforces", {
     connection,
     defaultJobOptions,
 });
 
-export const codechefQueue = new Queue("sync:codechef", {
+export const codechefQueue = new Queue("sync-codechef", {
     connection,
     defaultJobOptions,
 });
 
-export const gfgQueue = new Queue("sync:geeksforgeeks", {
+export const gfgQueue = new Queue("sync-geeksforgeeks", {
     connection,
     defaultJobOptions,
 });
