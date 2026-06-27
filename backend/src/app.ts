@@ -7,10 +7,12 @@ import type MessageResponse from "./interfaces/message-response.js";
 
 import api from "./api/index.js";
 import * as middlewares from "./middlewares.js";
+import { prometheusMiddleware } from "./middlewares/prometheus.js";
 import logger from "./utils/logger.js";
 
 const app = express();
 
+app.use(prometheusMiddleware);
 app.use(pinoHttp({ logger }));
 app.use(helmet());
 app.use(cors());
