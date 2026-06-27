@@ -8,7 +8,7 @@ http:
   url: http://localhost:3000/api/v1/codingprofile
   headers:
     - name: Authorization
-      value: " Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIyYWI2Mzc4OC00NWJmLTRlYTgtYjllOC03ZmJkZmRhYjU1NTgiLCJlbWFpbCI6InRhamJhYmExMDVAZ21haWwuY29tIiwiaWF0IjoxNzgyNTY5NTcxLCJleHAiOjE3ODI1NzA0NzF9.cJP0HEXY77rRQiH-d_W5BPkEJYbnFe1ie7eBKM_3fpI"
+      value: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIyYWI2Mzc4OC00NWJmLTRlYTgtYjllOC03ZmJkZmRhYjU1NTgiLCJlbWFpbCI6InRhamJhYmExMDVAZ21haWwuY29tIiwiaWF0IjoxNzgyNTY5NTcxLCJleHAiOjE3ODI1NzA0NzF9.cJP0HEXY77rRQiH-d_W5BPkEJYbnFe1ie7eBKM_3fpI
   body:
     type: json
     data: |-
