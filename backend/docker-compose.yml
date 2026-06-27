@@ -67,6 +67,8 @@ services:
     depends_on:
       - loki
       - prometheus
+    networks:
+      - bullmq-network
 
   prometheus:
     image: prom/prometheus:latest
