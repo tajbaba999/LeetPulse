@@ -1,26 +1,36 @@
-import { Job, Worker } from "bullmq";
-import syncQueue from "../../queues/sync.queue.js";
-import { redisConnection } from "../../queue.js";
-
-async function LeetcodeFetcher(userId: string) {
-    // Fetching / Scraping logic goes here...
-    console.log("Leetcode", userId);
-}
+import { Worker } from "bullmq";
+import { connection, leetcodeQueue } from "../../queues/sync.queue.js";
+import { fetchLeetCodeProfile } from "../../fetchers/leetcodeFetcher.js";
+import type { SyncJobData } from "../../types/coding-profiles.js";
 
 const leetcodeWorker = new Worker(
-    syncQueue.name,
-    async (job: Job) => {
-        const { userId } = job.data;
-        await LeetcodeFetcher(userId);
+    leetcodeQueue.name,
+    async (job) => {
+        const { userId, username } = job.data as SyncJobData;
+        job.log(`Fetching LeetCode profile for ${username} (user: ${userId})`);
+
+        const profile = await fetchLeetCodeProfile(username);
+        job.log(`Solved: ${profile.totalSolved} (Easy: ${profile.easySolved}, Medium: ${profile.mediumSolved}, Hard: ${profile.hardSolved})`);
+
+        // TODO: store profile data in DB
+        return profile;
     },
     {
-        connection: redisConnection,
-        concurrency: 5,
+        connection,
+        concurrency: 2,
         limiter: {
             max: 2,
-            duration: 1000
+            duration: 1000,
         },
-    }
+    },
 );
+
+leetcodeWorker.on("completed", (job) => {
+    console.log(`[leetcode] Job ${job.id} completed for ${job.data.username}`);
+});
+
+leetcodeWorker.on("failed", (job, err) => {
+    console.error(`[leetcode] Job ${job?.id} failed for ${job?.data.username}:`, err.message);
+});
 
 export default leetcodeWorker;

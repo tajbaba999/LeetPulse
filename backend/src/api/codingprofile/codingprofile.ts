@@ -1,10 +1,28 @@
 import Express from "express";
 import { codingProfileSchema, type CodingProfileInput } from "../../validators/profile.validator.js";
 import prisma from "../../db.js";
-import syncQueue from "../../queues/sync.queue.js";
+import { getQueueForPlatform } from "../../queues/sync.queue.js";
+import type { Platform } from "../../types/coding-profiles.js";
 
-// Platforms we actively sync (hackerrank excluded — no sync support yet)
-const platforms: (keyof CodingProfileInput)[] = ["leetcode", "geeksforgeeks", "codechef", "codeforces"];
+const platforms: Platform[] = ["leetcode", "geeksforgeeks", "codechef", "codeforces"];
+
+function extractUsername(url: string, platform: Platform): string {
+    const pathname = new URL(url).pathname;
+    const segments = pathname.split("/").filter(Boolean);
+
+    switch (platform) {
+        case "leetcode":
+            return segments[segments.length - 1] ?? segments[0];
+        case "codeforces":
+            return segments[segments.length - 1] ?? segments[0];
+        case "codechef":
+            return segments[segments.length - 1] ?? segments[0];
+        case "geeksforgeeks":
+            return segments[segments.length - 2] ?? segments[segments.length - 1];
+        default:
+            return segments[segments.length - 1] ?? segments[0];
+    }
+}
 
 const router = Express.Router();
 
@@ -38,15 +56,23 @@ router.post("/", async (req, res) => {
             data: { userId: user.userId, leetcode, codeforces, codechef, hackerrank, geeksforgeeks },
         });
 
-        // Queue sync jobs for each platform that has a username provided
+        // Queue sync jobs for each platform that has a URL provided.
+        // Priority 3 = signup full sync (lower than manual update).
+        // jobId deduplicates: if this user+platform job is already queued/active, the add is a no-op.
         for (const platform of platforms) {
-            const username = allprofiles.data[platform];
-            if (username) {
-                await syncQueue.add(`sync-${platform}`, {
+            const url = allprofiles.data[platform];
+            if (url) {
+                const username = extractUsername(url, platform);
+                const queue = getQueueForPlatform(platform);
+                await queue.add(`sync-${platform}`, {
                     userId: user.userId,
                     platform,
                     username,
+                }, {
+                    priority: 3,
+                    jobId: `sync-${platform}-${user.userId}`,
                 });
+                log.info({ platform, username }, "Queued sync job");
             }
         }
 
@@ -96,6 +122,26 @@ router.put("/", async (req, res) => {
             where: { userId: user.userId },
             data: fieldsToUpdate,
         });
+
+        // Re-sync platforms that were updated.
+        // Priority 1 = manual "Update Profile" click (highest priority per architecture).
+        // jobId deduplicates: replaces any existing queued job for this user+platform.
+        for (const platform of platforms) {
+            const url = parsed.data[platform];
+            if (url) {
+                const username = extractUsername(url, platform);
+                const queue = getQueueForPlatform(platform);
+                await queue.add(`sync-${platform}`, {
+                    userId: user.userId,
+                    platform,
+                    username,
+                }, {
+                    priority: 1,
+                    jobId: `sync-${platform}-${user.userId}`,
+                });
+                log.info({ platform, username }, "Queued sync job for updated platform");
+            }
+        }
 
         log.info({ updatedFields: Object.keys(fieldsToUpdate) }, "Coding profiles updated successfully");
         res.status(200).json({ message: "Successfully updated coding profiles" });
@@ -160,7 +206,7 @@ router.delete("/", async (req, res) => {
     }
     catch (ex) {
         req.log.error({ err: ex }, "Failed to delete coding profiles");
-        return res.status(500).json({ message: "Server Error!" });
+        res.status(500).json({ message: "Server Error!" });
     }
 });
 

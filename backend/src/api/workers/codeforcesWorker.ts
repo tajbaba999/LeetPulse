@@ -1,25 +1,36 @@
-import { Job, Worker } from "bullmq";
-import syncQueue from "../../queues/sync.queue.js";
-import { redisConnection } from "../../queue.js";
-
-async function CodeForcesFetcher(userId: string) {
-    console.log("Codeforces", userId);
-}
+import { Worker } from "bullmq";
+import { connection, codeforcesQueue } from "../../queues/sync.queue.js";
+import { fetchCodeforcesProfile } from "../../fetchers/codeforcesFetcher.js";
+import type { SyncJobData } from "../../types/coding-profiles.js";
 
 const codeforcesWorker = new Worker(
-    syncQueue.name,
-    async (job: Job) => {
-        const { userId } = job.data;
-        await CodeForcesFetcher(userId);
+    codeforcesQueue.name,
+    async (job) => {
+        const { userId, username } = job.data as SyncJobData;
+        job.log(`Fetching Codeforces profile for ${username} (user: ${userId})`);
+
+        const profile = await fetchCodeforcesProfile(username);
+        job.log(`Rating: ${profile.rating} (${profile.rank}), Solved: ${profile.solvedCount}`);
+
+        // TODO: store profile data in DB
+        return profile;
     },
     {
-        connection: redisConnection,
+        connection,
         concurrency: 5,
         limiter: {
-            max: 2,
-            duration: 1000
+            max: 5,
+            duration: 1000,
         },
     },
 );
+
+codeforcesWorker.on("completed", (job) => {
+    console.log(`[codeforces] Job ${job.id} completed for ${job.data.username}`);
+});
+
+codeforcesWorker.on("failed", (job, err) => {
+    console.error(`[codeforces] Job ${job?.id} failed for ${job?.data.username}:`, err.message);
+});
 
 export default codeforcesWorker;

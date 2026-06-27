@@ -1,25 +1,36 @@
-import { Job, Worker } from "bullmq";
-import syncQueue from "../../queues/sync.queue.js";
-import { redisConnection } from "../../queue.js";
-
-async function CodechefFetcher(userId: string) {
-    console.log("Codechef", userId);
-}
+import { Worker } from "bullmq";
+import { connection, codechefQueue } from "../../queues/sync.queue.js";
+import { fetchCodechefProfile } from "../../fetchers/codechefFetcher.js";
+import type { SyncJobData } from "../../types/coding-profiles.js";
 
 const codechefWorker = new Worker(
-    syncQueue.name,
-    async (job: Job) => {
-        const { userId } = job.data;
-        await CodechefFetcher(userId);
+    codechefQueue.name,
+    async (job) => {
+        const { userId, username } = job.data as SyncJobData;
+        job.log(`Fetching CodeChef profile for ${username} (user: ${userId})`);
+
+        const profile = await fetchCodechefProfile(username);
+        job.log(`Rating: ${profile.rating}, Global Rank: ${profile.globalRank}`);
+
+        // TODO: store profile data in DB
+        return profile;
     },
     {
-        connection: redisConnection,
-        concurrency: 5,
+        connection,
+        concurrency: 1,
         limiter: {
-            max: 2,
-            duration: 1000
+            max: 1,
+            duration: 1000,
         },
     },
 );
+
+codechefWorker.on("completed", (job) => {
+    console.log(`[codechef] Job ${job.id} completed for ${job.data.username}`);
+});
+
+codechefWorker.on("failed", (job, err) => {
+    console.error(`[codechef] Job ${job?.id} failed for ${job?.data.username}:`, err.message);
+});
 
 export default codechefWorker;
