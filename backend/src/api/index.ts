@@ -6,7 +6,7 @@ import { authenticateToken } from "../middlewares.js";
 import Singin from "./auth/signin.js";
 import Signup from "./auth/singup.js";
 import CodingProfile from "./codingprofile/codingprofile.js";
-import Me from "./me.js";
+import Profile from "./profile.js";
 
 const router = express.Router();
 
@@ -22,7 +22,7 @@ router.use("/signin", Singin);
 // Everything below this line requires a valid  access token.
 router.use(authenticateToken);
 
-router.use("/me", Me);
+router.use("/profile", Profile);
 router.use("/codingprofile", CodingProfile);
 
 export default router;
