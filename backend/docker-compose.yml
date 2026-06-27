@@ -39,6 +39,7 @@ services:
       - "3100:3100"
     volumes:
       - ./loki-config.yml:/etc/loki/local-config.yml
+      - loki_data:/loki
     command: -config.file=/etc/loki/local-config.yml
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:3100/ready" ]
@@ -65,3 +66,4 @@ networks:
 volumes:
   grafana_data:
   redis_data:
+  loki_data:
