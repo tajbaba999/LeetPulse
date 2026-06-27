@@ -2,6 +2,7 @@ import { Worker } from "bullmq";
 import { connection, codechefQueue } from "../../queues/sync.queue.js";
 import { fetchCodechefProfile } from "../../fetchers/codechefFetcher.js";
 import type { SyncJobData } from "../../types/coding-profiles.js";
+import prisma from "../../db.js";
 
 const codechefWorker = new Worker(
     codechefQueue.name,
@@ -12,7 +13,12 @@ const codechefWorker = new Worker(
         const profile = await fetchCodechefProfile(username);
         job.log(`Rating: ${profile.rating}, Global Rank: ${profile.globalRank}`);
 
-        // TODO: store profile data in DB
+        await prisma.codechefStats.upsert({
+            where: { userId },
+            create: { userId, ...profile },
+            update: { ...profile },
+        });
+
         return profile;
     },
     {

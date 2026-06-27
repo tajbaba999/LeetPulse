@@ -2,6 +2,7 @@ import { Worker } from "bullmq";
 import { connection, gfgQueue } from "../../queues/sync.queue.js";
 import { fetchGfgProfile } from "../../fetchers/gfgFetcher.js";
 import type { SyncJobData } from "../../types/coding-profiles.js";
+import prisma from "../../db.js";
 
 const gfgWorker = new Worker(
     gfgQueue.name,
@@ -12,7 +13,12 @@ const gfgWorker = new Worker(
         const profile = await fetchGfgProfile(username);
         job.log(`Score: ${profile.codingScore}, Problems Solved: ${profile.problemsSolved}`);
 
-        // TODO: store profile data in DB
+        await prisma.geeksforgeeksStats.upsert({
+            where: { userId },
+            create: { userId, ...profile },
+            update: { ...profile },
+        });
+
         return profile;
     },
     {

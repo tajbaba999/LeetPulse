@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -12,8 +7,7 @@ datasource db {
 }
 
 model User {
-  id String @id @default(uuid())
-
+  id       String @id @default(uuid())
   name     String
   email    String @unique
   password String
@@ -21,18 +15,89 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  codingProfiles CodingProfiles?
+  codingProfiles     CodingProfiles?
+  leetCodeStats      LeetCodeStats?
+  codeforcesStats    CodeforcesStats?
+  codechefStats      CodechefStats?
+  geeksforgeeksStats GeeksforgeeksStats?
 }
 
 model CodingProfiles {
-  id            String   @id @default(uuid())
-  userId        String   @unique
+  id            String  @id @default(uuid())
+  userId        String  @unique
   leetcode      String?
   codeforces    String?
   codechef      String?
   hackerrank    String?
   geeksforgeeks String?
-  user          User     @relation(fields: [userId], references: [id])
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model LeetCodeStats {
+  id             String @id @default(uuid())
+  userId         String @unique
+  username       String
+  totalSolved    Int    @default(0)
+  totalQuestions Int    @default(0)
+  easySolved     Int    @default(0)
+  mediumSolved   Int    @default(0)
+  hardSolved     Int    @default(0)
+  ranking        Int    @default(0)
+  acceptanceRate Float  @default(0)
+  streak         Int    @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model CodeforcesStats {
+  id           String @id @default(uuid())
+  userId       String @unique
+  username     String
+  rating       Int    @default(0)
+  rank         String @default("")
+  maxRating    Int    @default(0)
+  maxRank      String @default("")
+  contribution Int    @default(0)
+  solvedCount  Int    @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model CodechefStats {
+  id          String @id @default(uuid())
+  userId      String @unique
+  username    String
+  name        String @default("")
+  rating      String @default("0")
+  globalRank  String @default("N/A")
+  countryRank String @default("N/A")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model GeeksforgeeksStats {
+  id             String @id @default(uuid())
+  userId         String @unique
+  username       String
+  name           String @default("")
+  codingScore    String @default("0")
+  problemsSolved String @default("0")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
 }

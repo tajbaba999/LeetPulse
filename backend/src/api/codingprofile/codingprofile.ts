@@ -141,17 +141,29 @@ router.get("/", async (req, res) => {
 
         const log = req.log.child({ userId: user.userId });
 
-        const profile = await prisma.codingProfiles.findUnique({
-            where: { userId: user.userId },
-        });
+        const [profiles, leetCodeStats, codeforcesStats, codechefStats, geeksforgeeksStats] = await Promise.all([
+            prisma.codingProfiles.findUnique({ where: { userId: user.userId } }),
+            prisma.leetCodeStats.findUnique({ where: { userId: user.userId } }),
+            prisma.codeforcesStats.findUnique({ where: { userId: user.userId } }),
+            prisma.codechefStats.findUnique({ where: { userId: user.userId } }),
+            prisma.geeksforgeeksStats.findUnique({ where: { userId: user.userId } }),
+        ]);
 
-        if (!profile) {
+        if (!profiles) {
             log.warn("Coding profiles not found for user");
             return res.status(404).json({ message: "Coding profiles not found. Create them first." });
         }
 
         log.info("Coding profiles fetched successfully");
-        res.status(200).json(profile);
+        res.status(200).json({
+            profiles,
+            stats: {
+                leetcode: leetCodeStats,
+                codeforces: codeforcesStats,
+                codechef: codechefStats,
+                geeksforgeeks: geeksforgeeksStats,
+            },
+        });
     }
     catch (ex) {
         req.log.error({ err: ex }, "Failed to fetch coding profiles");

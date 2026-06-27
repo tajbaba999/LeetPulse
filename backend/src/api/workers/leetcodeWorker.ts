@@ -2,6 +2,7 @@ import { Worker } from "bullmq";
 import { connection, leetcodeQueue } from "../../queues/sync.queue.js";
 import { fetchLeetCodeProfile } from "../../fetchers/leetcodeFetcher.js";
 import type { SyncJobData } from "../../types/coding-profiles.js";
+import prisma from "../../db.js";
 
 const leetcodeWorker = new Worker(
     leetcodeQueue.name,
@@ -12,7 +13,12 @@ const leetcodeWorker = new Worker(
         const profile = await fetchLeetCodeProfile(username);
         job.log(`Solved: ${profile.totalSolved} (Easy: ${profile.easySolved}, Medium: ${profile.mediumSolved}, Hard: ${profile.hardSolved})`);
 
-        // TODO: store profile data in DB
+        await prisma.leetCodeStats.upsert({
+            where: { userId },
+            create: { userId, ...profile },
+            update: { ...profile },
+        });
+
         return profile;
     },
     {
