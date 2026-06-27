@@ -2,12 +2,12 @@ import { Registry, Counter, Histogram, Gauge, collectDefaultMetrics } from "prom
 
 export const register = new Registry();
 
-collectDefaultMetrics({ register });
+collectDefaultMetrics({ register, labels: { app_kubernetes_io_name: "dsa-tracker" } });
 
 export const httpRequestDuration = new Histogram({
   name: "http_request_duration_seconds",
   help: "Duration of HTTP requests in seconds",
-  labelNames: ["method", "route", "status_code"],
+  labelNames: ["method", "route", "status_code", "app_kubernetes_io_name"],
   buckets: [0.01, 0.05, 0.1, 0.5, 1, 2, 5],
   registers: [register],
 });
@@ -15,13 +15,14 @@ export const httpRequestDuration = new Histogram({
 export const httpRequestTotal = new Counter({
   name: "http_request_total",
   help: "Total number of HTTP requests",
-  labelNames: ["method", "route", "status_code"],
+  labelNames: ["method", "route", "status_code", "app_kubernetes_io_name"],
   registers: [register],
 });
 
 export const httpRequestsInFlight = new Gauge({
   name: "http_requests_in_flight",
   help: "Number of HTTP requests currently being served",
+  labelNames: ["app_kubernetes_io_name"],
   registers: [register],
 });
 
