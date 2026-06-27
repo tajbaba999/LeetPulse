@@ -8,6 +8,19 @@ import { codingProfileSchema } from "../../validators/profile.validator.js";
 
 const platforms: Platform[] = ["leetcode", "geeksforgeeks", "codechef", "codeforces"];
 
+// Extract username from a URL or return as-is if already a username
+function extractUsername(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  try {
+    const url = new URL(value);
+    const parts = url.pathname.split("/").filter(Boolean);
+    return parts[parts.length - 1] || value;
+  }
+  catch {
+    return value;
+  }
+}
+
 const router = Express.Router();
 
 router.post("/", async (req, res) => {
@@ -18,7 +31,18 @@ router.post("/", async (req, res) => {
     }
 
     const log = req.log.child({ userId: user.userId });
-    const allprofiles = codingProfileSchema.safeParse(req.body);
+
+    // Extract usernames from URLs before validation
+    const raw = req.body as Record<string, string | undefined>;
+    const normalized = {
+      leetcode: extractUsername(raw.leetcode),
+      codeforces: extractUsername(raw.codeforces),
+      codechef: extractUsername(raw.codechef),
+      hackerrank: extractUsername(raw.hackerrank),
+      geeksforgeeks: extractUsername(raw.geeksforgeeks),
+    };
+
+    const allprofiles = codingProfileSchema.safeParse(normalized);
 
     if (!allprofiles.success) {
       log.warn("Coding profile creation request failed validation");
@@ -76,7 +100,18 @@ router.put("/", async (req, res) => {
     }
 
     const log = req.log.child({ userId: user.userId });
-    const parsed = codingProfileSchema.safeParse(req.body);
+
+    // Extract usernames from URLs before validation
+    const raw = req.body as Record<string, string | undefined>;
+    const normalized = {
+      leetcode: extractUsername(raw.leetcode),
+      codeforces: extractUsername(raw.codeforces),
+      codechef: extractUsername(raw.codechef),
+      hackerrank: extractUsername(raw.hackerrank),
+      geeksforgeeks: extractUsername(raw.geeksforgeeks),
+    };
+
+    const parsed = codingProfileSchema.safeParse(normalized);
 
     if (!parsed.success) {
       log.warn("Coding profile update request failed validation");

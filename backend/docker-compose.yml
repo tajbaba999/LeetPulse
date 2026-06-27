@@ -17,12 +17,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: dev
     restart: unless-stopped
     depends_on:
       redis:
         condition: service_healthy
     environment:
-      NODE_ENV: production
+      NODE_ENV: development
       PORT: 3000
       DATABASE_URL: ${DATABASE_URL}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
@@ -32,6 +33,8 @@ services:
       REDIS_URL: redis://redis:6379
     ports:
       - "3000:3000"
+    volumes:
+      - ./src:/app/src
     networks:
       - bullmq-network
 
