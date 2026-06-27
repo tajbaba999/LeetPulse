@@ -1,4 +1,5 @@
 import express from "express";
+
 import prisma from "../db.js";
 
 const router = express.Router();
@@ -25,7 +26,8 @@ router.get("/", async (req, res) => {
     }
 
     res.status(200).json(user);
-  } catch (error) {
+  }
+  catch (error) {
     console.error("Error fetching user profile:", error);
     res.status(500).json({ error: "Internal server error" });
   }

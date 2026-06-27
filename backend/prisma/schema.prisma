@@ -20,4 +20,19 @@ model User {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  codingProfiles CodingProfiles?
+}
+
+model CodingProfiles {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  leetcode      String?
+  codeforces    String?
+  codechef      String?
+  hackerrank    String?
+  geeksforgeeks String?
+  user          User     @relation(fields: [userId], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }

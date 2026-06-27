@@ -1,4 +1,5 @@
 import type { ConnectionOptions } from "bullmq";
+
 import { Queue, Worker } from "bullmq";
 
 function parseRedisUrl(url: string): ConnectionOptions {

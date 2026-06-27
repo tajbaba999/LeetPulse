@@ -7,7 +7,6 @@ import type MessageResponse from "./interfaces/message-response.js";
 
 import api from "./api/index.js";
 import * as middlewares from "./middlewares.js";
-import { queues } from "./queue.js";
 
 const app = express();
 
@@ -15,7 +14,6 @@ app.use(morgan("dev"));
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
-
 
 app.get<object, MessageResponse>("/", (req, res) => {
   res.json({

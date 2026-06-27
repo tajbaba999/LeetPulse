@@ -3,8 +3,8 @@ import type { NextFunction, Request, Response } from "express";
 import type ErrorResponse from "./interfaces/error-response.js";
 
 import { env } from "./env.js";
-import { refreshTokenSchema } from "./validators/refreshtoken.validator.js";
 import { verifyAccessToken } from "./utils/tokens.js";
+import { refreshTokenSchema } from "./validators/refreshtoken.validator.js";
 
 export function notFound(req: Request, res: Response, next: NextFunction) {
   res.status(404);
@@ -31,7 +31,8 @@ export function authenticateToken(req: Request, res: Response, next: NextFunctio
     const payload = verifyAccessToken(token);
     req.user = payload;
     next();
-  } catch {
+  }
+  catch {
     return res.status(401).json({ message: "Invalid or expired token" });
   }
 }
@@ -48,5 +49,5 @@ export function refreshTokenValidaiton(req: Request, res: Response, next: NextFu
     return res.status(422).json({ error: "Invalid refresh token" });
   }
 
-  const { refreshToken } = result.data;
+  next();
 }
