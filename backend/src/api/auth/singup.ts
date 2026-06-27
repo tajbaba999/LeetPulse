@@ -14,41 +14,36 @@ const SALT_ROUNDS = 10;
 
 router.post<object, SingupResponse>("/", async (req, res) => {
   try {
-    // 1. Validate request body with Zod
     const result = signupSchema.safeParse(req.body);
     if (!result.success) {
-      res.status(422).json({
-        error: z.prettifyError(result.error),
-      });
+      req.log.warn("Signup request failed validation");
+      res.status(422).json({ error: z.prettifyError(result.error) });
       return;
     }
 
     const { name, email, password } = result.data;
 
-    // 2. Check if user already exists
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
+      req.log.warn({ email }, "Signup attempt with already registered email");
       res.status(400).json({ error: "User already exists" });
       return;
     }
 
-    // 3. Hash the password with bcrypt (10 salt rounds)
     const hashedPassword = bcrypt.hashSync(password, SALT_ROUNDS);
-
-    // 4. Create user with hashed password
     const user = await prisma.user.create({
       data: { name, email, password: hashedPassword },
     });
 
-    // 5. Generate access token (15 min) + refresh token (7 days)
     const payload = { userId: user.id, email: user.email };
     const accessToken = generateAccessToken(payload);
     const refreshToken = generateRefreshToken(payload);
 
+    req.log.info({ userId: user.id, email }, "User registered successfully");
     res.status(201).json({ accessToken, refreshToken });
   }
   catch (error: unknown) {
-    console.error("Error registering user:", error);
+    req.log.error({ err: error }, "Failed to register user");
     res.status(500).json({ error: "An error occurred while registering the user" });
   }
 });
