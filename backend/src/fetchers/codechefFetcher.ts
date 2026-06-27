@@ -1,5 +1,6 @@
 import axios from "axios";
 import * as cheerio from "cheerio";
+
 import type { CodechefProfile } from "../types/coding-profiles.js";
 
 export async function fetchCodechefProfile(username: string): Promise<CodechefProfile> {

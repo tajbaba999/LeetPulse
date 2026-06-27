@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken";
+
 import { env } from "../env.js";
 
 // Access token expires in 15 minutes

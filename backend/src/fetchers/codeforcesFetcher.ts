@@ -1,23 +1,24 @@
 import axios from "axios";
+
 import type { CodeforcesProfile } from "../types/coding-profiles.js";
 
 const CF_API = "https://codeforces.com/api";
 
-interface CFUserInfo {
+type CFUserInfo = {
   handle: string;
   rating: number;
   rank: string;
   maxRating: number;
   maxRank: string;
   contribution: number;
-}
+};
 
-interface CFStatusResponse {
+type CFStatusResponse = {
   status: string;
   result: Array<{
     problem: { contestId: number; index: string; name: string };
   }>;
-}
+};
 
 export async function fetchCodeforcesProfile(username: string): Promise<CodeforcesProfile> {
   const userResp = await axios.get(`${CF_API}/user.info`, {

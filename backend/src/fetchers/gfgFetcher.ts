@@ -1,5 +1,6 @@
 import axios from "axios";
 import * as cheerio from "cheerio";
+
 import type { GfgProfile } from "../types/coding-profiles.js";
 
 export async function fetchGfgProfile(username: string): Promise<GfgProfile> {

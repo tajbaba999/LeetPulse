@@ -38,9 +38,9 @@ model CodingProfiles {
 }
 
 model LeetCodeStats {
-  id             String @id @default(uuid())
-  userId         String @unique
-  username       String
+  id         String @id @default(uuid())
+  userId     String @unique
+  username   String
   totalSolved    Int    @default(0)
   totalQuestions Int    @default(0)
   easySolved     Int    @default(0)
@@ -49,6 +49,19 @@ model LeetCodeStats {
   ranking        Int    @default(0)
   acceptanceRate Float  @default(0)
   streak         Int    @default(0)
+
+  // Contest summary
+  contestRating         Float  @default(0)
+  contestGlobalRanking  Int    @default(0)
+  contestTopPercentage  Float  @default(0)
+  attendedContestsCount Int    @default(0)
+
+  // Nested data (JSON)
+  questionProgress  Json?
+  skillStats        Json?
+  languageStats     Json?
+  recentSubmissions Json?
+  calendarData      Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -100,4 +113,21 @@ model GeeksforgeeksStats {
   updatedAt DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id])
+}
+
+model LeetCodeContestHistory {
+  id          String  @id @default(uuid())
+  userId      String
+  contestTitle String
+  startTime   Int
+  attended    Boolean
+  rating      Float
+  ranking     Int
+  trendDirection      String  @default("")
+  problemsSolved      Int     @default(0)
+  totalProblems       Int     @default(0)
+  finishTimeInSeconds Int     @default(0)
+
+  @@unique([userId, contestTitle])
+  @@index([userId])
 }
