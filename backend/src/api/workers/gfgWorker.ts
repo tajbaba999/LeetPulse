@@ -4,6 +4,7 @@ import type { SyncJobData } from "../../types/coding-profiles.js";
 
 import prisma from "../../db.js";
 import { fetchGfgProfile } from "../../fetchers/gfgFetcher.js";
+import { attachWorkerMetrics } from "../../queues/metrics.js";
 import { connection, gfgQueue } from "../../queues/sync.queue.js";
 
 const gfgWorker = new Worker(
@@ -40,5 +41,7 @@ gfgWorker.on("completed", (job) => {
 gfgWorker.on("failed", (job, err) => {
   console.error(`[gfg] Job ${job?.id} failed for ${job?.data.username}:`, err.message);
 });
+
+attachWorkerMetrics(gfgWorker, "geeksforgeeks");
 
 export default gfgWorker;

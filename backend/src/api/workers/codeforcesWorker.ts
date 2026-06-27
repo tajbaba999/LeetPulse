@@ -4,6 +4,7 @@ import type { SyncJobData } from "../../types/coding-profiles.js";
 
 import prisma from "../../db.js";
 import { fetchCodeforcesProfile } from "../../fetchers/codeforcesFetcher.js";
+import { attachWorkerMetrics } from "../../queues/metrics.js";
 import { codeforcesQueue, connection } from "../../queues/sync.queue.js";
 
 const codeforcesWorker = new Worker(
@@ -40,5 +41,7 @@ codeforcesWorker.on("completed", (job) => {
 codeforcesWorker.on("failed", (job, err) => {
   console.error(`[codeforces] Job ${job?.id} failed for ${job?.data.username}:`, err.message);
 });
+
+attachWorkerMetrics(codeforcesWorker, "codeforces");
 
 export default codeforcesWorker;

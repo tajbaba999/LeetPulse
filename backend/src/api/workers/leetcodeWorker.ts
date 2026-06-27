@@ -7,6 +7,7 @@ import type { SyncJobData } from "../../types/coding-profiles.js";
 import prisma from "../../db.js";
 import { fetchLeetCodeFullSync } from "../../fetchers/leetcodeFetcher.js";
 import { connection, leetcodeQueue } from "../../queues/sync.queue.js";
+import { attachWorkerMetrics } from "../../queues/metrics.js";
 
 const leetcodeWorker = new Worker(
   leetcodeQueue.name,
@@ -128,5 +129,7 @@ leetcodeWorker.on("failed", (job, err) => {
   const data = job?.data as SyncJobData | undefined;
   console.error(`[leetcode] Job ${job?.id} failed for ${data?.username}:`, err.message);
 });
+
+attachWorkerMetrics(leetcodeWorker, "leetcode");
 
 export default leetcodeWorker;
