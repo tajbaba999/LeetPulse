@@ -1,0 +1,28 @@
+info:
+  name: Codingprofile update
+  type: http
+  seq: 5
+
+http:
+  method: PUT
+  url: http://localhost:3000/api/v1/codingprofile
+  headers:
+    - name: Authorization
+      value: " Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIyYWI2Mzc4OC00NWJmLTRlYTgtYjllOC03ZmJkZmRhYjU1NTgiLCJlbWFpbCI6InRhamJhYmExMDVAZ21haWwuY29tIiwiaWF0IjoxNzgyNTY1NzczLCJleHAiOjE3ODI1NjY2NzN9.epLvGQyPK51NZZLVVFctmOzZUXg0iAI5cIbWcUiIvTc"
+  body:
+    type: json
+    data: |-
+      {
+        "leetcode" : "https://leetcode.com/tajbaba999",
+        "codeforces" : "https://leetcode.com/tajbaba999",
+        "codechef" : "https://leetcode.com/tajbaba999",
+        "hackerrank" : "https://leetcode.com/tajbaba999",
+        "geeksforgeeks" : "https://leetcode.com/tajbaba999"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
