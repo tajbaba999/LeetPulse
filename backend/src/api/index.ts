@@ -6,6 +6,7 @@ import { authenticateToken } from "../middlewares.js";
 import Singin from "./auth/signin.js";
 import Signup from "./auth/singup.js";
 import CodingProfile from "./codingprofile/codingprofile.js";
+import Metrics from "./metrics/metrics.js";
 import Profile from "./profile.js";
 
 const router = express.Router();
@@ -16,6 +17,7 @@ router.get<object, MessageResponse>("/", (req, res) => {
   });
 });
 
+router.use("/metrics", Metrics);
 router.use("/signup", Signup);
 router.use("/signin", Singin);
 
