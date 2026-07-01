@@ -1,12 +1,8 @@
 import Express from "express";
 
-import type { Platform } from "../../types/coding-profiles.js";
-
 import prisma from "../../db.js";
 import { getQueueForPlatform } from "../../queues/sync.queue.js";
 import { codingProfileSchema } from "../../validators/profile.validator.js";
-
-const platforms: Platform[] = ["leetcode", "geeksforgeeks", "codechef", "codeforces"];
 
 // Extract username from a URL or return as-is if already a username
 function extractUsername(value: string | undefined): string | undefined {
@@ -32,14 +28,9 @@ router.post("/", async (req, res) => {
 
     const log = req.log.child({ userId: user.userId });
 
-    // Extract usernames from URLs before validation
     const raw = req.body as Record<string, string | undefined>;
     const normalized = {
       leetcode: extractUsername(raw.leetcode),
-      codeforces: extractUsername(raw.codeforces),
-      codechef: extractUsername(raw.codechef),
-      hackerrank: extractUsername(raw.hackerrank),
-      geeksforgeeks: extractUsername(raw.geeksforgeeks),
     };
 
     const allprofiles = codingProfileSchema.safeParse(normalized);
@@ -49,7 +40,7 @@ router.post("/", async (req, res) => {
       return res.status(422).json({ message: "Invalid coding profiles" });
     }
 
-    const { leetcode, codeforces, codechef, hackerrank, geeksforgeeks } = allprofiles.data;
+    const { leetcode } = allprofiles.data;
 
     const existingProfile = await prisma.codingProfiles.findUnique({
       where: { userId: user.userId },
@@ -61,26 +52,20 @@ router.post("/", async (req, res) => {
     }
 
     await prisma.codingProfiles.create({
-      data: { userId: user.userId, leetcode, codeforces, codechef, hackerrank, geeksforgeeks },
+      data: { userId: user.userId, leetcode },
     });
 
-    // Queue sync jobs for each platform that has a username provided.
-    // Priority 3 = signup full sync (lower than manual update).
-    // jobId deduplicates: if this user+platform job is already queued/active, the add is a no-op.
-    for (const platform of platforms) {
-      const username = allprofiles.data[platform];
-      if (username) {
-        const queue = getQueueForPlatform(platform);
-        await queue.add(`sync-${platform}`, {
-          userId: user.userId,
-          platform,
-          username,
-        }, {
-          priority: 3,
-          jobId: `sync-${platform}-${user.userId}`,
-        });
-        log.info({ platform, username }, "Queued sync job");
-      }
+    if (leetcode) {
+      const queue = getQueueForPlatform("leetcode");
+      await queue.add("sync-leetcode", {
+        userId: user.userId,
+        platform: "leetcode",
+        username: leetcode,
+      }, {
+        priority: 3,
+        jobId: `sync-leetcode-${user.userId}`,
+      });
+      log.info({ username: leetcode }, "Queued sync job");
     }
 
     log.info("Coding profiles created successfully");
@@ -101,14 +86,9 @@ router.put("/", async (req, res) => {
 
     const log = req.log.child({ userId: user.userId });
 
-    // Extract usernames from URLs before validation
     const raw = req.body as Record<string, string | undefined>;
     const normalized = {
       leetcode: extractUsername(raw.leetcode),
-      codeforces: extractUsername(raw.codeforces),
-      codechef: extractUsername(raw.codechef),
-      hackerrank: extractUsername(raw.hackerrank),
-      geeksforgeeks: extractUsername(raw.geeksforgeeks),
     };
 
     const parsed = codingProfileSchema.safeParse(normalized);
@@ -141,23 +121,17 @@ router.put("/", async (req, res) => {
       data: fieldsToUpdate,
     });
 
-    // Re-sync platforms that were updated.
-    // Priority 1 = manual "Update Profile" click (highest priority per architecture).
-    // jobId deduplicates: replaces any existing queued job for this user+platform.
-    for (const platform of platforms) {
-      const username = parsed.data[platform];
-      if (username) {
-        const queue = getQueueForPlatform(platform);
-        await queue.add(`sync-${platform}`, {
-          userId: user.userId,
-          platform,
-          username,
-        }, {
-          priority: 1,
-          jobId: `sync-${platform}-${user.userId}`,
-        });
-        log.info({ platform, username }, "Queued sync job for updated platform");
-      }
+    if (parsed.data.leetcode) {
+      const queue = getQueueForPlatform("leetcode");
+      await queue.add("sync-leetcode", {
+        userId: user.userId,
+        platform: "leetcode",
+        username: parsed.data.leetcode,
+      }, {
+        priority: 1,
+        jobId: `sync-leetcode-${user.userId}`,
+      });
+      log.info({ username: parsed.data.leetcode }, "Queued sync job for updated platform");
     }
 
     log.info({ updatedFields: Object.keys(fieldsToUpdate) }, "Coding profiles updated successfully");
@@ -178,12 +152,9 @@ router.get("/", async (req, res) => {
 
     const log = req.log.child({ userId: user.userId });
 
-    const [profiles, leetCodeStats, codeforcesStats, codechefStats, geeksforgeeksStats] = await Promise.all([
+    const [profiles, leetCodeStats] = await Promise.all([
       prisma.codingProfiles.findUnique({ where: { userId: user.userId } }),
       prisma.leetCodeStats.findUnique({ where: { userId: user.userId } }),
-      prisma.codeforcesStats.findUnique({ where: { userId: user.userId } }),
-      prisma.codechefStats.findUnique({ where: { userId: user.userId } }),
-      prisma.geeksforgeeksStats.findUnique({ where: { userId: user.userId } }),
     ]);
 
     if (!profiles) {
@@ -196,9 +167,6 @@ router.get("/", async (req, res) => {
       profiles,
       stats: {
         leetcode: leetCodeStats,
-        codeforces: codeforcesStats,
-        codechef: codechefStats,
-        geeksforgeeks: geeksforgeeksStats,
       },
     });
   }

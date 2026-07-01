@@ -88,34 +88,7 @@ export type LeetCodeSyncResult = {
   calendar: LeetCodeCalendar;
 };
 
-// ── Other Platform Types ──
-
-export type CodeforcesProfile = {
-  username: string;
-  rating: number;
-  rank: string;
-  maxRating: number;
-  maxRank: string;
-  contribution: number;
-  solvedCount: number;
-};
-
-export type CodechefProfile = {
-  username: string;
-  name: string;
-  rating: string;
-  globalRank: string;
-  countryRank: string;
-};
-
-export type GfgProfile = {
-  username: string;
-  name: string;
-  codingScore: string;
-  problemsSolved: string;
-};
-
-export type Platform = "leetcode" | "codeforces" | "codechef" | "geeksforgeeks";
+export type Platform = "leetcode";
 
 export type SyncJobData = {
   userId: string;

@@ -8,10 +8,6 @@ const usernameSchema = z
 
 export const codingProfileSchema = z.object({
   leetcode: usernameSchema.optional(),
-  codeforces: usernameSchema.optional(),
-  codechef: usernameSchema.optional(),
-  hackerrank: usernameSchema.optional(),
-  geeksforgeeks: usernameSchema.optional(),
 });
 
 export type CodingProfileInput = z.infer<typeof codingProfileSchema>;
