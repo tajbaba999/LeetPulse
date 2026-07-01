@@ -22,41 +22,11 @@ const defaultJobOptions = {
   removeOnFail: false,
 };
 
-// Platform queues with rate limits matching the architecture:
-//   LeetCode: 2/s  (GraphQL)
-//   Codeforces: 5/s (REST API)
-//   CodeChef: 1/s  (API + scrape)
-//   GFG: 1/s       (Profile scrape)
-
 export const leetcodeQueue = new Queue("sync-leetcode", {
   connection,
   defaultJobOptions,
 });
 
-export const codeforcesQueue = new Queue("sync-codeforces", {
-  connection,
-  defaultJobOptions,
-});
-
-export const codechefQueue = new Queue("sync-codechef", {
-  connection,
-  defaultJobOptions,
-});
-
-export const gfgQueue = new Queue("sync-geeksforgeeks", {
-  connection,
-  defaultJobOptions,
-});
-
-const platformQueues = {
-  leetcode: leetcodeQueue,
-  codeforces: codeforcesQueue,
-  codechef: codechefQueue,
-  geeksforgeeks: gfgQueue,
-} as const;
-
-export function getQueueForPlatform(platform: keyof typeof platformQueues) {
-  return platformQueues[platform];
+export function getQueueForPlatform(platform: "leetcode") {
+  return leetcodeQueue;
 }
-
-export default platformQueues;
