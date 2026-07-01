@@ -1,0 +1,28 @@
+info:
+  name: Get LeetCode Question Progress
+  type: http
+  seq: 2
+
+http:
+  method: POST
+  url: http://localhost:3000/api/v1/leetcode/progress
+  headers:
+    - name: Content-Type
+      value: application/json
+  body:
+    type: json
+    data: |-
+      {
+        "username": "tajbaba999",
+        "session": "{{LEETCODE_SESSION}}",
+        "csrf": "{{LEETCODE_CSRF}}",
+        "skip": 0,
+        "limit": 50
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5
