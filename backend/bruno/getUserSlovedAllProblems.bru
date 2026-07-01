@@ -1,15 +1,16 @@
-info:
-  name: Get LeetCode Question Progress
+meta {
+  name: getUserSlovedAllProblems
   type: http
   seq: 2
+}
 
-http:
-  method: GET
+post {
   url: http://localhost:3000/api/v1/leetcode/progress
+  body: none
   auth: inherit
+}
 
-settings:
+settings {
   encodeUrl: true
   timeout: 0
-  followRedirects: true
-  maxRedirects: 5
+}
