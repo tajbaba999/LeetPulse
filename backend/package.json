@@ -33,6 +33,7 @@
     "graphql-request": "^7.4.0",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
+    "leetcode-query": "^2.0.1",
     "morgan": "^1.10.1",
     "pg": "^8.22.0",
     "pino": "^10.3.1",
