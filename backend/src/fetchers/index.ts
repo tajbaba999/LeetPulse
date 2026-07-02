@@ -5,5 +5,6 @@ export {
   fetchLeetCodeLanguageStats,
   fetchLeetCodeProfile,
   fetchLeetCodeQuestionProgress,
+  fetchLeetCodeSessionProgress,
   fetchLeetCodeSkillStats,
 } from "./leetcodeFetcher.js";

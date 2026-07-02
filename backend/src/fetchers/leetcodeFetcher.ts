@@ -1,5 +1,12 @@
-import { gql, GraphQLClient } from "graphql-request";
+import { GraphQLClient } from "graphql-request";
 
+import { GET_CALENDAR } from "../api/leetcode/queries/calendar.query.js";
+import { GET_CONTEST_RANKING } from "../api/leetcode/queries/contest.query.js";
+import { GET_LANGUAGE_STATS } from "../api/leetcode/queries/language-stats.query.js";
+import { GET_USER_PROFILE } from "../api/leetcode/queries/profile.query.js";
+import { GET_QUESTION_PROGRESS } from "../api/leetcode/queries/question-progress.query.js";
+import { GET_SESSION_PROGRESS } from "../api/leetcode/queries/session-progress.query.js";
+import { GET_SKILL_STATS } from "../api/leetcode/queries/skill-stats.query.js";
 import type {
   LeetCodeCalendar,
   LeetCodeContestHistoryEntry,
@@ -7,13 +14,12 @@ import type {
   LeetCodeLanguageStats,
   LeetCodeProfile,
   LeetCodeQuestionProgress,
+  LeetCodeSessionProgress,
   LeetCodeSkillStats,
   LeetCodeSyncResult,
 } from "../types/coding-profiles.js";
 
-const LEETCODE_GRAPHQL = "https://leetcode.com/graphql";
-
-const client = new GraphQLClient(LEETCODE_GRAPHQL, {
+const client = new GraphQLClient("https://leetcode.com/graphql", {
   headers: {
     "Content-Type": "application/json",
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
@@ -21,59 +27,7 @@ const client = new GraphQLClient(LEETCODE_GRAPHQL, {
   },
 });
 
-// ── Query 1: getUserProfile — core stats + recent submissions ──
-
-const GET_USER_PROFILE = gql`
-  query getUserProfile($username: String!) {
-    allQuestionsCount {
-      difficulty
-      count
-    }
-    matchedUser(username: $username) {
-      contributions {
-        points
-      }
-      profile {
-        reputation
-        ranking
-      }
-      submissionCalendar
-      submitStats {
-        acSubmissionNum {
-          difficulty
-          count
-          submissions
-        }
-        totalSubmissionNum {
-          difficulty
-          count
-          submissions
-        }
-      }
-    }
-    recentSubmissionList(username: $username, limit: 20) {
-      title
-      titleSlug
-      timestamp
-      statusDisplay
-      lang
-    }
-    matchedUserStats: matchedUser(username: $username) {
-      submitStats: submitStatsGlobal {
-        acSubmissionNum {
-          difficulty
-          count
-          submissions
-        }
-        totalSubmissionNum {
-          difficulty
-          count
-          submissions
-        }
-      }
-    }
-  }
-`;
+// ── Response types ──
 
 type UserProfileResponse = {
   allQuestionsCount: Array<{ difficulty: string; count: number }>;
@@ -101,36 +55,6 @@ type UserProfileResponse = {
   } | null;
 };
 
-// ── Query 2: userContestRankingInfo — contest ranking + history ──
-
-const GET_CONTEST_RANKING = gql`
-  query userContestRankingInfo($username: String!) {
-    userContestRanking(username: $username) {
-      attendedContestsCount
-      rating
-      globalRanking
-      totalParticipants
-      topPercentage
-      badge {
-        name
-      }
-    }
-    userContestRankingHistory(username: $username) {
-      attended
-      trendDirection
-      problemsSolved
-      totalProblems
-      finishTimeInSeconds
-      rating
-      ranking
-      contest {
-        title
-        startTime
-      }
-    }
-  }
-`;
-
 type ContestRankingResponse = {
   userContestRanking: {
     attendedContestsCount: number;
@@ -152,65 +76,25 @@ type ContestRankingResponse = {
   }>;
 };
 
-// ── Query 3: userProfileUserQuestionProgressV2 — accepted/failed/untouched ──
-
-const GET_QUESTION_PROGRESS = gql`
-  query userProfileUserQuestionProgressV2($username: String!) {
-    userProfileUserQuestionProgressV2(userSlug: $username) {
-      numAcceptedQuestions {
-        count
-        difficulty
-      }
-      numFailedQuestions {
-        count
-        difficulty
-      }
-      numUntouchedQuestions {
-        count
-        difficulty
-      }
-      userSessionBeatsPercentage {
-        difficulty
-        percentage
-      }
-    }
-  }
-`;
-
 type QuestionProgressResponse = {
   userProfileUserQuestionProgressV2: {
     numAcceptedQuestions: Array<{ count: number; difficulty: string }>;
     numFailedQuestions: Array<{ count: number; difficulty: string }>;
     numUntouchedQuestions: Array<{ count: number; difficulty: string }>;
     userSessionBeatsPercentage: Array<{ difficulty: string; percentage: number }>;
+    totalQuestionBeatsPercentage: number;
   } | null;
 };
 
-// ── Query 4: skillStats — tag-based problem counts ──
-
-const GET_SKILL_STATS = gql`
-  query skillStats($username: String!) {
-    matchedUser(username: $username) {
-      tagProblemCounts {
-        advanced {
-          tagName
-          tagSlug
-          problemsSolved
-        }
-        intermediate {
-          tagName
-          tagSlug
-          problemsSolved
-        }
-        fundamental {
-          tagName
-          tagSlug
-          problemsSolved
-        }
-      }
-    }
-  }
-`;
+type SessionProgressResponse = {
+  allQuestionsCount: Array<{ difficulty: string; count: number }>;
+  matchedUser: {
+    submitStats: {
+      acSubmissionNum: Array<{ difficulty: string; count: number; submissions: number }>;
+      totalSubmissionNum: Array<{ difficulty: string; count: number; submissions: number }>;
+    };
+  } | null;
+};
 
 type SkillStatsResponse = {
   matchedUser: {
@@ -222,39 +106,11 @@ type SkillStatsResponse = {
   } | null;
 };
 
-// ── Query 5: languageStats — language-wise solved counts ──
-
-const GET_LANGUAGE_STATS = gql`
-  query languageStats($username: String!) {
-    matchedUser(username: $username) {
-      languageProblemCount {
-        languageName
-        problemsSolved
-      }
-    }
-  }
-`;
-
 type LanguageStatsResponse = {
   matchedUser: {
     languageProblemCount: Array<{ languageName: string; problemsSolved: number }>;
   } | null;
 };
-
-// ── Query 6: UserProfileCalendar — streak + active days ──
-
-const GET_CALENDAR = gql`
-  query UserProfileCalendar($username: String!, $year: Int!) {
-    matchedUser(username: $username) {
-      userCalendar(year: $year) {
-        activeYears
-        streak
-        totalActiveDays
-        submissionCalendar
-      }
-    }
-  }
-`;
 
 type CalendarResponse = {
   matchedUser: {
@@ -262,12 +118,16 @@ type CalendarResponse = {
       activeYears: number[];
       streak: number;
       totalActiveDays: number;
-      submissionCalendar: Record<string, number>;
+      dccBadges: Array<{
+        timestamp: number;
+        badge: { name: string; icon: string };
+      }>;
+      submissionCalendar: string | Record<string, number>;
     } | null;
   } | null;
 };
 
-// ── Helper: parse submission calendar (API returns JSON string) ──
+// ── Helpers ──
 
 function parseCalendar(raw: string | Record<string, number> | undefined): Record<string, number> {
   if (!raw)
@@ -282,8 +142,6 @@ function parseCalendar(raw: string | Record<string, number> | undefined): Record
   }
 }
 
-// ── Helper: calculate streak from submission calendar ──
-
 function calculateStreak(submissionCalendar: Record<string, number>): number {
   const todayDay = Math.floor(Date.now() / 1000 / 86400);
   let streak = 0;
@@ -295,7 +153,7 @@ function calculateStreak(submissionCalendar: Record<string, number>): number {
   return streak;
 }
 
-// ── Individual fetch functions ──
+// ── Fetch functions ──
 
 export async function fetchLeetCodeProfile(username: string): Promise<LeetCodeProfile> {
   const data = await client.request<UserProfileResponse>(GET_USER_PROFILE, { username });
@@ -311,7 +169,6 @@ export async function fetchLeetCodeProfile(username: string): Promise<LeetCodePr
   const acEasy = acStats.find(s => s.difficulty === "Easy");
   const acMedium = acStats.find(s => s.difficulty === "Medium");
   const acHard = acStats.find(s => s.difficulty === "Hard");
-
   const totalAll = totalStats?.find(s => s.difficulty === "All");
 
   return {
@@ -384,8 +241,24 @@ export async function fetchLeetCodeQuestionProgress(
     numAcceptedQuestions: data.userProfileUserQuestionProgressV2.numAcceptedQuestions,
     numFailedQuestions: data.userProfileUserQuestionProgressV2.numFailedQuestions,
     numUntouchedQuestions: data.userProfileUserQuestionProgressV2.numUntouchedQuestions,
-    userSessionBeatsPercentage:
-      data.userProfileUserQuestionProgressV2.userSessionBeatsPercentage,
+    userSessionBeatsPercentage: data.userProfileUserQuestionProgressV2.userSessionBeatsPercentage,
+    totalQuestionBeatsPercentage: data.userProfileUserQuestionProgressV2.totalQuestionBeatsPercentage,
+  };
+}
+
+export async function fetchLeetCodeSessionProgress(
+  username: string,
+): Promise<LeetCodeSessionProgress> {
+  const data = await client.request<SessionProgressResponse>(GET_SESSION_PROGRESS, { username });
+
+  if (!data.matchedUser) {
+    throw new Error(`Session progress not found for "${username}"`);
+  }
+
+  return {
+    allQuestionsCount: data.allQuestionsCount,
+    acSubmissionNum: data.matchedUser.submitStats.acSubmissionNum,
+    totalSubmissionNum: data.matchedUser.submitStats.totalSubmissionNum,
   };
 }
 
@@ -413,14 +286,13 @@ export async function fetchLeetCodeLanguageStats(
 
 export async function fetchLeetCodeCalendar(
   username: string,
-  year: number,
+  year?: number,
 ): Promise<LeetCodeCalendar> {
-  const data = await client.request<CalendarResponse>(GET_CALENDAR, { username, year });
+  const data = await client.request<CalendarResponse>(GET_CALENDAR, { username, year: year ?? null });
 
   const calendar = data.matchedUser?.userCalendar;
   const rawCalendar = calendar?.submissionCalendar;
 
-  // submissionCalendar comes as a JSON string from the API
   let parsedCalendar: Record<string, number> = {};
   if (typeof rawCalendar === "string") {
     try {
@@ -436,24 +308,22 @@ export async function fetchLeetCodeCalendar(
     activeYears: calendar?.activeYears ?? [],
     streak: calendar?.streak ?? 0,
     totalActiveDays: calendar?.totalActiveDays ?? 0,
+    dccBadges: calendar?.dccBadges ?? [],
     submissionCalendar: parsedCalendar,
   };
 }
 
-// ── Combined sync function ──
-
 export async function fetchLeetCodeFullSync(username: string): Promise<LeetCodeSyncResult> {
-  const currentYear = new Date().getFullYear();
-
-  const [profile, contest, questionProgress, skillStats, languageStats, calendar]
+  const [profile, contest, questionProgress, sessionProgress, skillStats, languageStats, calendar]
     = await Promise.all([
       fetchLeetCodeProfile(username),
       fetchLeetCodeContest(username),
       fetchLeetCodeQuestionProgress(username),
+      fetchLeetCodeSessionProgress(username),
       fetchLeetCodeSkillStats(username),
       fetchLeetCodeLanguageStats(username),
-      fetchLeetCodeCalendar(username, currentYear),
+      fetchLeetCodeCalendar(username),
     ]);
 
-  return { profile, contest, questionProgress, skillStats, languageStats, calendar };
+  return { profile, contest, questionProgress, sessionProgress, skillStats, languageStats, calendar };
 }
