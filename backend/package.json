@@ -20,6 +20,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@pinecone-database/pinecone": "^8.0.0",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "axios": "^1.18.1",
@@ -35,6 +36,7 @@
     "jsonwebtoken": "^9.0.3",
     "leetcode-query": "^2.0.1",
     "morgan": "^1.10.1",
+    "openai": "^6.45.0",
     "pg": "^8.22.0",
     "pino": "^10.3.1",
     "pino-http": "^11.0.0",
