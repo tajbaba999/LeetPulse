@@ -52,6 +52,14 @@ export type LeetCodeQuestionProgress = {
   numFailedQuestions: Array<{ difficulty: string; count: number }>;
   numUntouchedQuestions: Array<{ difficulty: string; count: number }>;
   userSessionBeatsPercentage: Array<{ difficulty: string; percentage: number }>;
+  totalQuestionBeatsPercentage: number;
+};
+
+/** userSessionProgress query — total question counts + submission stats by difficulty */
+export type LeetCodeSessionProgress = {
+  allQuestionsCount: Array<{ difficulty: string; count: number }>;
+  acSubmissionNum: Array<{ difficulty: string; count: number; submissions: number }>;
+  totalSubmissionNum: Array<{ difficulty: string; count: number; submissions: number }>;
 };
 
 /** skillStats query — tag-based problem counts by level */
@@ -67,11 +75,15 @@ export type LeetCodeLanguageStats = {
   problemsSolved: number;
 };
 
-/** UserProfileCalendar query — streak + active days */
+/** userProfileCalendar query — streak + active days + DCC badges */
 export type LeetCodeCalendar = {
   activeYears: number[];
   streak: number;
   totalActiveDays: number;
+  dccBadges: Array<{
+    timestamp: number;
+    badge: { name: string; icon: string };
+  }>;
   submissionCalendar: Record<string, number>;
 };
 
@@ -83,6 +95,7 @@ export type LeetCodeSyncResult = {
     history: LeetCodeContestHistoryEntry[];
   };
   questionProgress: LeetCodeQuestionProgress;
+  sessionProgress: LeetCodeSessionProgress;
   skillStats: LeetCodeSkillStats;
   languageStats: LeetCodeLanguageStats[];
   calendar: LeetCodeCalendar;
