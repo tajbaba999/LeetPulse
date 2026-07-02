@@ -1,6 +1,8 @@
 import Express from "express";
 import { Credential, LeetCode } from "leetcode-query";
 
+import { fetchLeetCodeContest } from "../../fetchers/leetcodeFetcher.js";
+
 // ── Shared LeetCode client (no auth) ──
 
 const lc = new LeetCode();
@@ -21,6 +23,7 @@ function getAuthClient() {
 
   return new LeetCode(credential);
 }
+
 
 const router = Express.Router();
 
@@ -69,6 +72,35 @@ router.get("/progress", async (_req, res) => {
   catch (ex) {
     console.error("userProgressQuestionList error:", ex);
     res.status(500).json({ message: "Failed to fetch question progress" });
+  }
+});
+
+// ── GET /api/v1/leetcode/my-contests?username=tajbaba999 ──
+// Public — returns contest rating, total attended count, and full history for a username
+
+router.get("/my-contests", async (req, res) => {
+  const { username } = req.query;
+
+  if (!username || typeof username !== "string") {
+    return res.status(400).json({ message: "username query param is required" });
+  }
+
+  try {
+    const { info, history } = await fetchLeetCodeContest(username);
+
+    res.status(200).json({
+      attendedContestsCount: info.attendedContestsCount,
+      rating: info.rating,
+      globalRanking: info.globalRanking,
+      totalParticipants: info.totalParticipants,
+      topPercentage: info.topPercentage,
+      badge: info.badge,
+      history,
+    });
+  }
+  catch (ex) {
+    console.error("userContestRankingInfo error:", ex);
+    res.status(500).json({ message: "Failed to fetch contest history" });
   }
 });
 
