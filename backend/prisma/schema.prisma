@@ -7,30 +7,23 @@ datasource db {
 }
 
 model User {
-  id                 String              @id @default(uuid())
-  name               String
-  email              String              @unique
-  password           String
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  codechefStats      CodechefStats?
-  codeforcesStats    CodeforcesStats?
-  codingProfiles     CodingProfiles?
-  geeksforgeeksStats GeeksforgeeksStats?
-  leetCodeStats      LeetCodeStats?
+  id             String          @id @default(uuid())
+  name           String
+  email          String          @unique
+  password       String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  codingProfiles CodingProfiles?
+  leetCodeStats  LeetCodeStats?
 }
 
 model CodingProfiles {
-  id            String   @id @default(uuid())
-  userId        String   @unique
-  leetcode      String?
-  codeforces    String?
-  codechef      String?
-  hackerrank    String?
-  geeksforgeeks String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  user          User     @relation(fields: [userId], references: [id])
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  leetcode  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
 }
 
 model LeetCodeStats {
@@ -57,46 +50,6 @@ model LeetCodeStats {
   recentSubmissions     Json?
   calendarData          Json?
   user                  User     @relation(fields: [userId], references: [id])
-}
-
-model CodeforcesStats {
-  id           String   @id @default(uuid())
-  userId       String   @unique
-  username     String
-  rating       Int      @default(0)
-  rank         String   @default("")
-  maxRating    Int      @default(0)
-  maxRank      String   @default("")
-  contribution Int      @default(0)
-  solvedCount  Int      @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  user         User     @relation(fields: [userId], references: [id])
-}
-
-model CodechefStats {
-  id          String   @id @default(uuid())
-  userId      String   @unique
-  username    String
-  name        String   @default("")
-  rating      String   @default("0")
-  globalRank  String   @default("N/A")
-  countryRank String   @default("N/A")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  user        User     @relation(fields: [userId], references: [id])
-}
-
-model GeeksforgeeksStats {
-  id             String   @id @default(uuid())
-  userId         String   @unique
-  username       String
-  name           String   @default("")
-  codingScore    String   @default("0")
-  problemsSolved String   @default("0")
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  user           User     @relation(fields: [userId], references: [id])
 }
 
 model LeetCodeContestHistory {

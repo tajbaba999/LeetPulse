@@ -58,7 +58,7 @@ router.post("/", async (req, res) => {
     if (leetcode) {
       await fetchLeetcodeQueue.add(
         "fetch-leetcode",
-        { userId: user.userId, platform: "leetcode", username: leetcode },
+        { userId: user.userId, username: leetcode },
         { priority: 3, jobId: `fetch-leetcode-${user.userId}` },
       );
       log.info({ username: leetcode }, "Queued fetch job");
@@ -96,14 +96,17 @@ router.post("/sync", async (req, res) => {
       return res.status(400).json({ message: "No LeetCode username linked to this profile." });
     }
 
+    const fetchJobId = `fetch-leetcode-${user.userId}`;
+    const processJobId = `process-leetcode-${user.userId}`;
+
     await fetchLeetcodeQueue.add(
       "fetch-leetcode",
-      { userId: user.userId, platform: "leetcode", username: profile.leetcode },
-      { priority: 1, jobId: `fetch-leetcode-${user.userId}` },
+      { userId: user.userId, username: profile.leetcode },
+      { priority: 1, jobId: fetchJobId },
     );
 
     log.info({ username: profile.leetcode }, "Queued sync job");
-    res.status(202).json({ message: "Sync started", username: profile.leetcode });
+    res.status(202).json({ message: "Sync started", username: profile.leetcode, jobId: fetchJobId, processJobId });
   }
   catch (ex) {
     req.log.error({ err: ex }, "Failed to start sync");
@@ -158,7 +161,7 @@ router.put("/", async (req, res) => {
     if (parsed.data.leetcode) {
       await fetchLeetcodeQueue.add(
         "fetch-leetcode",
-        { userId: user.userId, platform: "leetcode", username: parsed.data.leetcode },
+        { userId: user.userId, username: parsed.data.leetcode },
         { priority: 1, jobId: `fetch-leetcode-${user.userId}` },
       );
       log.info({ username: parsed.data.leetcode }, "Queued fetch job for updated platform");

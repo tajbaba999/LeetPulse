@@ -1,5 +1,3 @@
-// ── LeetCode Types (matching alfa-leetcode-api GraphQL queries) ──
-
 /** getUserProfile query — core stats + recent submissions */
 export type LeetCodeProfile = {
   username: string;
@@ -101,10 +99,7 @@ export type LeetCodeSyncResult = {
   calendar: LeetCodeCalendar;
 };
 
-export type Platform = "leetcode";
-
 export type SyncJobData = {
   userId: string;
-  platform: Platform;
   username: string;
 };
