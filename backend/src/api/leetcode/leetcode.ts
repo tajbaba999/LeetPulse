@@ -1,6 +1,7 @@
 import Express from "express";
 import { Credential, LeetCode } from "leetcode-query";
 
+import { env } from "../../env.js";
 import {
   fetchLeetCodeCalendar,
   fetchLeetCodeContest,
@@ -14,8 +15,8 @@ import {
 const lc = new LeetCode();
 
 function getAuthClient() {
-  const session = process.env.LEETCODE_SESSION;
-  const csrf = process.env.LEETCODE_CSRF;
+  const session = env.LEETCODE_SESSION;
+  const csrf = env.LEETCODE_CSRF;
   if (!session || !csrf)
     return null;
   const credential = new Credential();
@@ -29,7 +30,7 @@ function resolveUsername(query: Express.Request["query"]): string | null {
   const fromQuery = query.username;
   if (typeof fromQuery === "string" && fromQuery.trim())
     return fromQuery.trim();
-  const fromEnv = process.env.LEETCODE_USERNAME;
+  const fromEnv = env.LEETCODE_USERNAME;
   return fromEnv?.trim() ?? null;
 }
 

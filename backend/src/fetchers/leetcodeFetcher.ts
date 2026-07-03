@@ -1,12 +1,5 @@
 import { GraphQLClient } from "graphql-request";
 
-import { GET_CALENDAR } from "../api/leetcode/queries/calendar.query.js";
-import { GET_CONTEST_RANKING } from "../api/leetcode/queries/contest.query.js";
-import { GET_LANGUAGE_STATS } from "../api/leetcode/queries/language-stats.query.js";
-import { GET_USER_PROFILE } from "../api/leetcode/queries/profile.query.js";
-import { GET_QUESTION_PROGRESS } from "../api/leetcode/queries/question-progress.query.js";
-import { GET_SESSION_PROGRESS } from "../api/leetcode/queries/session-progress.query.js";
-import { GET_SKILL_STATS } from "../api/leetcode/queries/skill-stats.query.js";
 import type {
   LeetCodeCalendar,
   LeetCodeContestHistoryEntry,
@@ -18,6 +11,14 @@ import type {
   LeetCodeSkillStats,
   LeetCodeSyncResult,
 } from "../types/coding-profiles.js";
+
+import { GET_CALENDAR } from "../api/leetcode/queries/calendar.query.js";
+import { GET_CONTEST_RANKING } from "../api/leetcode/queries/contest.query.js";
+import { GET_LANGUAGE_STATS } from "../api/leetcode/queries/language-stats.query.js";
+import { GET_USER_PROFILE } from "../api/leetcode/queries/profile.query.js";
+import { GET_QUESTION_PROGRESS } from "../api/leetcode/queries/question-progress.query.js";
+import { GET_SESSION_PROGRESS } from "../api/leetcode/queries/session-progress.query.js";
+import { GET_SKILL_STATS } from "../api/leetcode/queries/skill-stats.query.js";
 
 const client = new GraphQLClient("https://leetcode.com/graphql", {
   headers: {
