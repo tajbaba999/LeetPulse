@@ -1,0 +1,15 @@
+meta {
+  name: Calendar
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/api/v1/leetcode/calendar
+  body: none
+  auth: none
+}
+
+params:query {
+  ~year: 2025
+}

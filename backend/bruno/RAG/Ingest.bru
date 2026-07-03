@@ -1,0 +1,15 @@
+meta {
+  name: Ingest
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/rag/ingest
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}

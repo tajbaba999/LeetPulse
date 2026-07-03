@@ -73,6 +73,44 @@ router.post("/", async (req, res) => {
   }
 });
 
+router.post("/sync", async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const log = req.log.child({ userId: user.userId });
+
+    const profile = await prisma.codingProfiles.findUnique({
+      where: { userId: user.userId },
+    });
+
+    if (!profile) {
+      log.warn("Sync attempted but no coding profile exists");
+      return res.status(404).json({ message: "No coding profile linked. Call POST /codingprofile first." });
+    }
+
+    if (!profile.leetcode) {
+      log.warn("Sync attempted but no LeetCode username linked");
+      return res.status(400).json({ message: "No LeetCode username linked to this profile." });
+    }
+
+    await fetchLeetcodeQueue.add(
+      "fetch-leetcode",
+      { userId: user.userId, platform: "leetcode", username: profile.leetcode },
+      { priority: 1, jobId: `fetch-leetcode-${user.userId}` },
+    );
+
+    log.info({ username: profile.leetcode }, "Queued sync job");
+    res.status(202).json({ message: "Sync started", username: profile.leetcode });
+  }
+  catch (ex) {
+    req.log.error({ err: ex }, "Failed to start sync");
+    res.status(500).json({ message: "Server Error!" });
+  }
+});
+
 router.put("/", async (req, res) => {
   try {
     const user = req.user;
