@@ -19,6 +19,7 @@ import { GET_USER_PROFILE } from "../api/leetcode/queries/profile.query.js";
 import { GET_QUESTION_PROGRESS } from "../api/leetcode/queries/question-progress.query.js";
 import { GET_SESSION_PROGRESS } from "../api/leetcode/queries/session-progress.query.js";
 import { GET_SKILL_STATS } from "../api/leetcode/queries/skill-stats.query.js";
+import { GET_USER_PROGRESS_QUESTIONS } from "../api/leetcode/queries/user-progress-questions.query.js";
 
 const client = new GraphQLClient("https://leetcode.com/graphql", {
   headers: {
@@ -125,6 +126,24 @@ type CalendarResponse = {
       }>;
       submissionCalendar: string | Record<string, number>;
     } | null;
+  } | null;
+};
+
+type UserProgressQuestionListResponse = {
+  userProgressQuestionList: {
+    totalNum: number;
+    questions: Array<{
+      translatedTitle: string | null;
+      frontendId: string;
+      title: string;
+      titleSlug: string;
+      difficulty: string;
+      lastSubmittedAt: string | null;
+      numSubmitted: number;
+      questionStatus: string;
+      lastResult: string;
+      topicTags: Array<{ name: string; nameTranslated: string | null; slug: string }>;
+    }>;
   } | null;
 };
 
@@ -327,4 +346,49 @@ export async function fetchLeetCodeFullSync(username: string): Promise<LeetCodeS
     ]);
 
   return { profile, contest, questionProgress, sessionProgress, skillStats, languageStats, calendar };
+}
+
+export type UserQuestion = {
+  frontendId: string;
+  title: string;
+  titleSlug: string;
+  difficulty: string;
+  lastSubmittedAt: string;
+  numSubmitted: number;
+  questionStatus: string;
+  lastResult: string;
+  topicTags: Array<{ name: string; nameTranslated: string; slug: string }>;
+};
+
+export async function fetchLeetCodeUserQuestions(
+  username: string,
+  skip = 0,
+  limit = 50,
+): Promise<{ totalNum: number; questions: UserQuestion[] }> {
+  const data = await client.request<UserProgressQuestionListResponse>(GET_USER_PROGRESS_QUESTIONS, {
+    filters: { skip, limit },
+  });
+
+  if (!data.userProgressQuestionList) {
+    return { totalNum: 0, questions: [] };
+  }
+
+  return {
+    totalNum: data.userProgressQuestionList.totalNum,
+    questions: data.userProgressQuestionList.questions.map(q => ({
+      frontendId: q.frontendId,
+      title: q.translatedTitle || q.title,
+      titleSlug: q.titleSlug,
+      difficulty: q.difficulty,
+      lastSubmittedAt: q.lastSubmittedAt ?? "",
+      numSubmitted: q.numSubmitted,
+      questionStatus: q.questionStatus,
+      lastResult: q.lastResult,
+      topicTags: q.topicTags.map(t => ({
+        name: t.name,
+        nameTranslated: t.nameTranslated || t.name,
+        slug: t.slug,
+      })),
+    })),
+  };
 }
