@@ -4,6 +4,7 @@ import { Worker } from "bullmq";
 import type { ProcessJobData } from "../../queues/process.queue.js";
 
 import prisma from "../../db.js";
+import { ingestRag } from "../../services/rag/ingest.js";
 import { connection } from "../../queues/sync.queue.js";
 import { processLeetcodeQueue } from "../../queues/process.queue.js";
 import { attachWorkerMetrics } from "../../queues/metrics.js";
@@ -104,8 +105,9 @@ const processWorker = new Worker(
 
     job.log(`[process] Postgres save complete`);
 
-    // ── 4. RAG ingest (wired in Task 12) ──
-    // ingestRag({ userId, username, syncResult, problems }) — added in Task 12
+    // ── 4. RAG ingest ──
+    const ragResult = await ingestRag(userId, username, syncResult, problems);
+    job.log(`[process] RAG ingest: ${ragResult.upserted} upserted, ${ragResult.skipped} skipped`);
   },
   { connection, concurrency: 2 },
 );
