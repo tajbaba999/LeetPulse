@@ -14,7 +14,8 @@ function getOpenAI(): OpenAI {
 }
 
 export async function embedChunks(chunks: Chunk[]): Promise<ChunkWithVector[]> {
-  if (chunks.length === 0) return [];
+  if (chunks.length === 0)
+    return [];
 
   // OpenAI supports up to 2048 inputs per request — batch all chunks in one call
   const response = await getOpenAI().embeddings.create({

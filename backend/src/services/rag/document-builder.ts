@@ -1,5 +1,5 @@
-import type { LeetCodeSyncResult } from "../../types/coding-profiles.js";
 import type { RawProblem } from "../../queues/process.queue.js";
+import type { LeetCodeSyncResult } from "../../types/coding-profiles.js";
 
 export type Chunk = {
   id: string;

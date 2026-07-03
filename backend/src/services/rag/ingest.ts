@@ -1,8 +1,8 @@
-import type { LeetCodeSyncResult } from "../../types/coding-profiles.js";
 import type { RawProblem } from "../../queues/process.queue.js";
+import type { LeetCodeSyncResult } from "../../types/coding-profiles.js";
 
-import { buildChunks } from "./document-builder.js";
 import { getChangedChunks, saveChunkHashes } from "./chunk-hasher.js";
+import { buildChunks } from "./document-builder.js";
 import { embedChunks } from "./embeddings.js";
 import { upsertChunks } from "./pinecone.js";
 

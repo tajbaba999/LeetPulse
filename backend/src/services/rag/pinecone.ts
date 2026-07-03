@@ -5,7 +5,8 @@ import type { ChunkWithVector } from "./embeddings.js";
 let _pc: Pinecone | null = null;
 /* eslint-disable node/no-process-env */
 function getPinecone(): Pinecone {
-  if (!_pc) _pc = new Pinecone({ apiKey: process.env.PINECONE_API_KEY ?? "" });
+  if (!_pc)
+    _pc = new Pinecone({ apiKey: process.env.PINECONE_API_KEY ?? "" });
   return _pc;
 }
 const indexName = () => process.env.PINECONE_INDEX ?? "dsa-tracker";
@@ -16,7 +17,8 @@ function getIndex() {
 }
 
 export async function upsertChunks(userId: string, chunks: ChunkWithVector[]): Promise<void> {
-  if (chunks.length === 0) return;
+  if (chunks.length === 0)
+    return;
 
   const index = getIndex().namespace(userId);
 
