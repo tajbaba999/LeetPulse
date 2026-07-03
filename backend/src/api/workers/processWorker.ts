@@ -67,41 +67,45 @@ const processWorker = new Worker(
 
     // ── 2. Replace LeetCodeProblem rows ──
     if (problems.length > 0) {
-      await prisma.$executeRaw`DELETE FROM "LeetCodeProblem" WHERE "userId" = ${userId}`;
-      await prisma.leetCodeProblem.createMany({
-        data: problems.map(p => ({
-          userId,
-          titleSlug: p.titleSlug,
-          title: p.title,
-          difficulty: p.difficulty,
-          questionStatus: p.questionStatus,
-          lastResult: p.lastResult,
-          lastSubmittedAt: p.lastSubmittedAt,
-          numSubmitted: p.numSubmitted,
-          topicTags: toJson(p.topicTags),
-        })),
+      await prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`DELETE FROM "LeetCodeProblem" WHERE "userId" = ${userId}`;
+        await tx.leetCodeProblem.createMany({
+          data: problems.map(p => ({
+            userId,
+            titleSlug: p.titleSlug,
+            title: p.title,
+            difficulty: p.difficulty,
+            questionStatus: p.questionStatus,
+            lastResult: p.lastResult,
+            lastSubmittedAt: p.lastSubmittedAt,
+            numSubmitted: p.numSubmitted,
+            topicTags: toJson(p.topicTags),
+          })),
+        });
       });
       job.log(`[process] Saved ${problems.length} problems`);
     }
 
     // ── 3. Replace LeetCodeContestHistory rows ──
-    await prisma.$executeRaw`DELETE FROM "LeetCodeContestHistory" WHERE "userId" = ${userId}`;
-    if (contest.history.length > 0) {
-      await prisma.leetCodeContestHistory.createMany({
-        data: contest.history.map(e => ({
-          userId,
-          contestTitle: e.contest.title,
-          startTime: e.contest.startTime,
-          attended: e.attended,
-          rating: e.rating,
-          ranking: e.ranking,
-          trendDirection: e.trendDirection,
-          problemsSolved: e.problemsSolved,
-          totalProblems: e.totalProblems,
-          finishTimeInSeconds: e.finishTimeInSeconds,
-        })),
-      });
-    }
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`DELETE FROM "LeetCodeContestHistory" WHERE "userId" = ${userId}`;
+      if (contest.history.length > 0) {
+        await tx.leetCodeContestHistory.createMany({
+          data: contest.history.map(e => ({
+            userId,
+            contestTitle: e.contest.title,
+            startTime: e.contest.startTime,
+            attended: e.attended,
+            rating: e.rating,
+            ranking: e.ranking,
+            trendDirection: e.trendDirection,
+            problemsSolved: e.problemsSolved,
+            totalProblems: e.totalProblems,
+            finishTimeInSeconds: e.finishTimeInSeconds,
+          })),
+        });
+      }
+    });
 
     job.log(`[process] Postgres save complete`);
 

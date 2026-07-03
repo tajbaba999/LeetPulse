@@ -3,10 +3,14 @@ import OpenAI from "openai";
 import { embedChunks } from "./embeddings.js";
 import { queryChunks } from "./pinecone.js";
 
-const openai = new OpenAI({
-  // eslint-disable-next-line node/no-process-env
-  apiKey: process.env.OPENAI_API_KEY,
-});
+let _openai: OpenAI | null = null;
+function getOpenAI(): OpenAI {
+  if (!_openai) {
+    // eslint-disable-next-line node/no-process-env
+    _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
+  return _openai;
+}
 
 export type ChatResult = {
   answer: string;
@@ -27,7 +31,7 @@ export async function chat(
   const sources = matches.map(m => m.id);
 
   // 3. Generate answer with gpt-4o-mini
-  const completion = await openai.chat.completions.create({
+  const completion = await getOpenAI().chat.completions.create({
     model: "gpt-4o-mini",
     messages: [
       {

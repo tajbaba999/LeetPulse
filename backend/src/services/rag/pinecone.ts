@@ -2,13 +2,17 @@ import { Pinecone } from "@pinecone-database/pinecone";
 
 import type { ChunkWithVector } from "./embeddings.js";
 
+let _pc: Pinecone | null = null;
 /* eslint-disable node/no-process-env */
-const pc = new Pinecone({ apiKey: process.env.PINECONE_API_KEY ?? "" });
-const indexName = process.env.PINECONE_INDEX ?? "dsa-tracker";
+function getPinecone(): Pinecone {
+  if (!_pc) _pc = new Pinecone({ apiKey: process.env.PINECONE_API_KEY ?? "" });
+  return _pc;
+}
+const indexName = () => process.env.PINECONE_INDEX ?? "dsa-tracker";
 /* eslint-enable node/no-process-env */
 
 function getIndex() {
-  return pc.index(indexName);
+  return getPinecone().index(indexName());
 }
 
 export async function upsertChunks(userId: string, chunks: ChunkWithVector[]): Promise<void> {
