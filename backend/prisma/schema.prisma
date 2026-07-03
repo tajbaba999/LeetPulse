@@ -52,6 +52,32 @@ model LeetCodeStats {
   user                  User     @relation(fields: [userId], references: [id])
 }
 
+model LeetCodeHistory {
+  id                    String   @id @default(uuid())
+  userId                String
+  username              String
+  snapshotAt            DateTime @default(now())
+  totalSolved           Int      @default(0)
+  totalQuestions        Int      @default(0)
+  easySolved            Int      @default(0)
+  mediumSolved          Int      @default(0)
+  hardSolved            Int      @default(0)
+  ranking               Int      @default(0)
+  acceptanceRate        Float    @default(0)
+  streak                Int      @default(0)
+  contestRating         Float    @default(0)
+  contestGlobalRanking  Int      @default(0)
+  contestTopPercentage  Float    @default(0)
+  attendedContestsCount Int      @default(0)
+  problemsSolvedList    Json?
+  contestHistory        Json?
+  skillStats            Json?
+  languageStats         Json?
+
+  @@index([userId])
+  @@index([userId, snapshotAt])
+}
+
 model LeetCodeContestHistory {
   id                  String  @id @default(uuid())
   userId              String
