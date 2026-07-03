@@ -17,10 +17,10 @@ const processWorker = new Worker(
     const { userId, username, syncResult, problems } = job.data as ProcessJobData;
     const { profile, contest, questionProgress, skillStats, languageStats, calendar } = syncResult;
 
-    await job.updateProgress({ stage: "db_save_started", pct: 40, msg: "Saving stats to database..." });
+    // ── 1. Upsert LeetCodeStats ──
+    await job.updateProgress({ stage: "db_stats", pct: 40, msg: `Saving profile stats for ${username}...` });
     job.log(`[process] Saving stats for ${username} to Postgres`);
 
-    // ── 1. Upsert LeetCodeStats ──
     const parsedCalendar = calendar.submissionCalendar;
     await prisma.leetCodeStats.upsert({
       where: { userId },
@@ -74,29 +74,42 @@ const processWorker = new Worker(
         }),
       },
     });
+    await job.updateProgress({ stage: "db_stats_done", pct: 45, msg: `Profile stats saved (solved: ${profile.totalSolved}, ranking: #${profile.ranking})` });
 
     // ── 2. Replace LeetCodeProblem rows ──
     if (problems.length > 0) {
+      await job.updateProgress({ stage: "db_problems", pct: 48, msg: `Saving ${problems.length} solved questions to database...` });
       await prisma.$transaction(async (tx) => {
         await tx.$executeRaw`DELETE FROM "LeetCodeProblem" WHERE "userId" = ${userId}`;
-        await tx.leetCodeProblem.createMany({
-          data: problems.map(p => ({
-            userId,
-            titleSlug: p.titleSlug,
-            title: p.title,
-            difficulty: p.difficulty,
-            questionStatus: p.questionStatus,
-            lastResult: p.lastResult,
-            lastSubmittedAt: p.lastSubmittedAt,
-            numSubmitted: p.numSubmitted,
-            topicTags: toJson(p.topicTags),
-          })),
-        });
+        // Batch insert in chunks of 100
+        const batchSize = 100;
+        for (let i = 0; i < problems.length; i += batchSize) {
+          const batch = problems.slice(i, i + batchSize);
+          await tx.leetCodeProblem.createMany({
+            data: batch.map(p => ({
+              userId,
+              titleSlug: p.titleSlug,
+              title: p.title,
+              difficulty: p.difficulty,
+              questionStatus: p.questionStatus,
+              lastResult: p.lastResult,
+              lastSubmittedAt: p.lastSubmittedAt,
+              numSubmitted: p.numSubmitted,
+              topicTags: toJson(p.topicTags),
+            })),
+          });
+          await job.updateProgress({ stage: "db_problems", pct: 48 + Math.round((i + batch.length) / problems.length * 5), msg: `Saved ${Math.min(i + batchSize, problems.length)}/${problems.length} questions to database...` });
+        }
       });
+      await job.updateProgress({ stage: "db_problems_done", pct: 53, msg: `${problems.length} questions saved with topic tags` });
       job.log(`[process] Saved ${problems.length} problems`);
+    }
+    else {
+      await job.updateProgress({ stage: "db_problems_skip", pct: 53, msg: `No questions to save (fetch auth may be needed)` });
     }
 
     // ── 3. Replace LeetCodeContestHistory rows ──
+    await job.updateProgress({ stage: "db_contests", pct: 54, msg: `Saving ${contest.history.length} contest entries...` });
     await prisma.$transaction(async (tx) => {
       await tx.$executeRaw`DELETE FROM "LeetCodeContestHistory" WHERE "userId" = ${userId}`;
       if (contest.history.length > 0) {
@@ -116,11 +129,10 @@ const processWorker = new Worker(
         });
       }
     });
-
-    await job.updateProgress({ stage: "db_saved", pct: 60, msg: "Database save complete" });
-    job.log(`[process] Postgres save complete`);
+    await job.updateProgress({ stage: "db_contests_done", pct: 56, msg: `${contest.history.length} contest entries saved` });
 
     // ── 4. Save history snapshot ──
+    await job.updateProgress({ stage: "history_snapshot", pct: 57, msg: `Saving history snapshot...` });
     await prisma.leetCodeHistory.create({
       data: {
         userId,
@@ -161,10 +173,11 @@ const processWorker = new Worker(
         languageStats: toJson(languageStats),
       },
     });
+    await job.updateProgress({ stage: "history_done", pct: 60, msg: `History snapshot saved` });
     job.log(`[process] History snapshot saved`);
 
     // ── 5. RAG ingest (non-blocking) ──
-    await job.updateProgress({ stage: "rag_started", pct: 62, msg: "Starting AI indexing..." });
+    await job.updateProgress({ stage: "rag_started", pct: 62, msg: `Building ${problems.length + 10} RAG documents from your data...` });
     try {
       const ragResult = await ingestRag(userId, username, syncResult, problems, async (stage, pct, msg) => {
         await job.updateProgress({ stage, pct, msg });
@@ -172,7 +185,7 @@ const processWorker = new Worker(
       await job.updateProgress({
         stage: "completed",
         pct: 100,
-        msg: `Sync complete: ${ragResult.upserted} indexed, ${ragResult.skipped} unchanged`,
+        msg: `Sync complete! ${profile.totalSolved} problems, ${problems.length} questions indexed, ${ragResult.upserted} RAG chunks updated`,
       });
       job.log(`[process] RAG ingest: ${ragResult.upserted} upserted, ${ragResult.skipped} skipped`);
     }
@@ -182,7 +195,7 @@ const processWorker = new Worker(
       await job.updateProgress({
         stage: "completed",
         pct: 100,
-        msg: `Sync complete (AI indexing skipped: ${errMsg})`,
+        msg: `DB sync complete! ${profile.totalSolved} problems saved. AI indexing skipped: ${errMsg}`,
       });
     }
   },
