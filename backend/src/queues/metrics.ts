@@ -1,6 +1,6 @@
 import type { Worker } from "bullmq";
 
-import { syncJobDuration, syncJobTotal, syncJobsInFlight } from "../lib/metrics.js";
+import { syncJobDuration, syncJobsInFlight, syncJobTotal } from "../lib/metrics.js";
 
 export function attachWorkerMetrics(worker: Worker, platform: string): void {
   worker.on("active", () => {

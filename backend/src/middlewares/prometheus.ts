@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 
-import { httpRequestDuration, httpRequestTotal, httpRequestsInFlight } from "../lib/metrics.js";
+import { httpRequestDuration, httpRequestsInFlight, httpRequestTotal } from "../lib/metrics.js";
 
 const APP_LABEL = { app_kubernetes_io_name: "dsa-tracker" };
 
