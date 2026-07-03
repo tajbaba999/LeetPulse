@@ -12,6 +12,56 @@ function getPinecone(): Pinecone {
 const indexName = () => process.env.PINECONE_INDEX ?? "dsa-tracker";
 /* eslint-enable node/no-process-env */
 
+let _indexReady = false;
+
+async function ensureIndex(): Promise<void> {
+  if (_indexReady)
+    return;
+
+  const pc = getPinecone();
+  const name = indexName();
+
+  try {
+    const existing = await pc.describeIndex(name);
+    if (existing.status?.ready) {
+      _indexReady = true;
+      return;
+    }
+  }
+  catch {
+    // Index doesn't exist — create it
+  }
+
+  try {
+    await pc.createIndex({
+      name,
+      dimension: 1536,
+      metric: "cosine",
+      spec: {
+        serverless: {
+          cloud: "aws",
+          region: "us-east-1",
+        },
+      },
+    });
+
+    // Wait for index to be ready
+    for (let i = 0; i < 30; i++) {
+      const desc = await pc.describeIndex(name);
+      if (desc.status?.ready) {
+        _indexReady = true;
+        return;
+      }
+      await new Promise(r => setTimeout(r, 2000));
+    }
+    _indexReady = true;
+  }
+  catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new Error(`Failed to create Pinecone index "${name}": ${msg}`);
+  }
+}
+
 function getIndex() {
   return getPinecone().index(indexName());
 }
@@ -19,6 +69,8 @@ function getIndex() {
 export async function upsertChunks(userId: string, chunks: ChunkWithVector[]): Promise<void> {
   if (chunks.length === 0)
     return;
+
+  await ensureIndex();
 
   const index = getIndex().namespace(userId);
 
@@ -41,6 +93,8 @@ export async function queryChunks(
   vector: number[],
   topK: number = 4,
 ): Promise<Array<{ id: string; text: string }>> {
+  await ensureIndex();
+
   const index = getIndex().namespace(userId);
   const result = await index.query({
     vector,
