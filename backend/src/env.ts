@@ -5,6 +5,7 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(3000),
   JWT_ACCESS_SECRET: z.string().min(1, "JWT_ACCESS_SECRET is required"),
   JWT_REFRESH_SECRET: z.string().min(1, "JWT_REFRESH_SECRET is required"),
+  LEETCODE_USERNAME: z.string().min(1, "LEETCODE_USERNAME is required"),
 });
 
 try {

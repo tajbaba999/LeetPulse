@@ -6,16 +6,10 @@ meta {
 
 post {
   url: {{baseUrl}}/api/v1/codingprofile
-  body: json
+  body: none
   auth: bearer
 }
 
 auth:bearer {
   token: {{accessToken}}
-}
-
-body:json {
-  {
-    "leetcode": "tajbaba999"
-  }
 }
