@@ -1,0 +1,16 @@
+meta {
+  name: Get History
+  type: http
+  seq: 5
+  doc: Returns historical snapshots of LeetCode progress over time. ?limit=30 (default, max 100).
+}
+
+get {
+  url: {{baseUrl}}/api/v1/codingprofile/history?limit=30
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}

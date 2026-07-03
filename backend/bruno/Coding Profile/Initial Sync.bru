@@ -1,0 +1,25 @@
+meta {
+  name: Initial Sync
+  type: http
+  seq: 0
+  doc: After signup, call this to create profile + queue full LeetCode sync in one step. Username auto-resolves from .env if body is empty.
+}
+
+post {
+  url: {{baseUrl}}/api/v1/codingprofile/initial-sync
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
+
+body:json {
+  {}
+}
+
+script:post-response {
+  const body = res.getBody();
+  if (body.username) bru.setVar("leetcodeUsername", body.username);
+}

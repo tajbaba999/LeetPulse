@@ -1,0 +1,16 @@
+meta {
+  name: Activity
+  type: http
+  seq: 6
+  doc: Returns parsed submission calendar. Query params: ?year=2026&month=7 (both optional)
+}
+
+get {
+  url: {{baseUrl}}/api/v1/codingprofile/activity?year=2026&month=7
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
