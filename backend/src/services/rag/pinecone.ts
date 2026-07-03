@@ -24,7 +24,7 @@ export async function upsertChunks(userId: string, chunks: ChunkWithVector[]): P
       records: batch.map(c => ({
         id: c.id,
         values: c.vector,
-        metadata: { type: c.type, chunkId: c.id },
+        metadata: { type: c.type, chunkId: c.id, text: c.text },
       })),
     });
   }
@@ -34,7 +34,7 @@ export async function queryChunks(
   userId: string,
   vector: number[],
   topK: number = 4,
-): Promise<string[]> {
+): Promise<Array<{ id: string; text: string }>> {
   const index = getIndex().namespace(userId);
   const result = await index.query({
     vector,
@@ -42,5 +42,8 @@ export async function queryChunks(
     includeMetadata: true,
   });
 
-  return (result.matches ?? []).map(m => m.metadata?.chunkId as string ?? "");
+  return (result.matches ?? []).map(m => ({
+    id: m.metadata?.chunkId as string ?? m.id,
+    text: m.metadata?.text as string ?? "",
+  }));
 }
