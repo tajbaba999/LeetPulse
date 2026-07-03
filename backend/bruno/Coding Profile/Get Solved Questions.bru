@@ -1,0 +1,16 @@
+meta {
+  name: Get Solved Questions
+  type: http
+  seq: 7
+  doc: Returns all solved questions with topic tags. Query params: ?difficulty=easy&tag=arrays&limit=50
+}
+
+get {
+  url: {{baseUrl}}/api/v1/codingprofile/questions?limit=100
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{accessToken}}
+}
