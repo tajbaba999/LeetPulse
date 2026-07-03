@@ -38,11 +38,12 @@ export function buildChunks(
   // ── skill chunks ──
   for (const level of ["advanced", "intermediate", "fundamental"] as const) {
     const tags = skillStats[level];
-    if (tags.length === 0) continue;
     const sorted = [...tags].sort((a, b) => a.problemsSolved - b.problemsSolved);
-    const lines = sorted.map(t =>
-      `- ${t.tagName}: ${t.problemsSolved} problems${t.problemsSolved <= 5 ? " ⚠ WEAK" : t.problemsSolved >= 50 ? " ✓ STRONG" : ""}`,
-    );
+    const lines = tags.length === 0
+      ? ["No problems solved in this category yet."]
+      : sorted.map(t =>
+          `- ${t.tagName}: ${t.problemsSolved} problems${t.problemsSolved <= 5 ? " ⚠ WEAK" : t.problemsSolved >= 50 ? " ✓ STRONG" : ""}`,
+        );
     chunks.push({
       id: `skill-${level}`,
       type: "summary",
