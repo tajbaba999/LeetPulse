@@ -413,4 +413,66 @@ router.get("/activity", async (req, res) => {
   }
 });
 
+// ── GET /codingprofile/questions ──
+// Returns all solved problems with topic tags from DB.
+// Query params: ?difficulty=easy&tag=arrays&limit=50
+router.get("/questions", async (req, res) => {
+  try {
+    const user = req.user;
+    if (!user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 500);
+    const difficulty = req.query.difficulty as string | undefined;
+    const tag = req.query.tag as string | undefined;
+
+    const problems = await prisma.leetCodeProblem.findMany({
+      where: { userId: user.userId },
+      orderBy: { lastSubmittedAt: "desc" },
+    });
+
+    let filtered = problems;
+
+    if (difficulty) {
+      const d = difficulty.charAt(0).toUpperCase() + difficulty.slice(1).toLowerCase();
+      filtered = filtered.filter(p => p.difficulty === d);
+    }
+
+    if (tag) {
+      const tagLower = tag.toLowerCase();
+      filtered = filtered.filter((p) => {
+        const tags = p.topicTags as Array<{ name: string; slug: string }>;
+        return Array.isArray(tags) && tags.some(t =>
+          t.name.toLowerCase().includes(tagLower) || t.slug.toLowerCase().includes(tagLower),
+        );
+      });
+    }
+
+    const sliced = filtered.slice(0, limit);
+
+    res.status(200).json({
+      total: filtered.length,
+      limit,
+      difficulty: difficulty ?? "all",
+      tag: tag ?? "all",
+      questions: sliced.map(p => ({
+        frontendId: p.titleSlug.split("-").pop() ?? "",
+        title: p.title,
+        titleSlug: p.titleSlug,
+        difficulty: p.difficulty,
+        lastResult: p.lastResult,
+        questionStatus: p.questionStatus,
+        lastSubmittedAt: p.lastSubmittedAt,
+        numSubmitted: p.numSubmitted,
+        topicTags: p.topicTags,
+      })),
+    });
+  }
+  catch (ex) {
+    req.log.error({ err: ex }, "Failed to fetch questions");
+    res.status(500).json({ message: "Server Error!" });
+  }
+});
+
 export default router;
