@@ -1,7 +1,7 @@
 import Express from "express";
 
 import prisma from "../../db.js";
-import { getQueueForPlatform } from "../../queues/sync.queue.js";
+import { fetchLeetcodeQueue } from "../../queues/fetch.queue.js";
 import { codingProfileSchema } from "../../validators/profile.validator.js";
 
 // Extract username from a URL or return as-is if already a username
@@ -56,16 +56,12 @@ router.post("/", async (req, res) => {
     });
 
     if (leetcode) {
-      const queue = getQueueForPlatform("leetcode");
-      await queue.add("sync-leetcode", {
-        userId: user.userId,
-        platform: "leetcode",
-        username: leetcode,
-      }, {
-        priority: 3,
-        jobId: `sync-leetcode-${user.userId}`,
-      });
-      log.info({ username: leetcode }, "Queued sync job");
+      await fetchLeetcodeQueue.add(
+        "fetch-leetcode",
+        { userId: user.userId, platform: "leetcode", username: leetcode },
+        { priority: 3, jobId: `fetch-leetcode-${user.userId}` },
+      );
+      log.info({ username: leetcode }, "Queued fetch job");
     }
 
     log.info("Coding profiles created successfully");
@@ -122,16 +118,12 @@ router.put("/", async (req, res) => {
     });
 
     if (parsed.data.leetcode) {
-      const queue = getQueueForPlatform("leetcode");
-      await queue.add("sync-leetcode", {
-        userId: user.userId,
-        platform: "leetcode",
-        username: parsed.data.leetcode,
-      }, {
-        priority: 1,
-        jobId: `sync-leetcode-${user.userId}`,
-      });
-      log.info({ username: parsed.data.leetcode }, "Queued sync job for updated platform");
+      await fetchLeetcodeQueue.add(
+        "fetch-leetcode",
+        { userId: user.userId, platform: "leetcode", username: parsed.data.leetcode },
+        { priority: 1, jobId: `fetch-leetcode-${user.userId}` },
+      );
+      log.info({ username: parsed.data.leetcode }, "Queued fetch job for updated platform");
     }
 
     log.info({ updatedFields: Object.keys(fieldsToUpdate) }, "Coding profiles updated successfully");
