@@ -1,10 +1,14 @@
+// ── Helper: reconstruct LeetCodeSyncResult from Postgres rows ──
+import type { LeetCodeContestHistory, LeetCodeStats } from "@prisma/client";
+
 import Express from "express";
 
 import type { ProcessJobData } from "../../queues/process.queue.js";
+import type { LeetCodeSyncResult } from "../../types/coding-profiles.js";
 
 import prisma from "../../db.js";
-import { ingestRag } from "../../services/rag/ingest.js";
 import { chat } from "../../services/rag/chat.js";
+import { ingestRag } from "../../services/rag/ingest.js";
 
 const router = Express.Router();
 
@@ -12,7 +16,8 @@ const router = Express.Router();
 // Reads from Postgres — does not re-fetch LeetCode
 router.post("/ingest", async (req, res) => {
   const user = req.user;
-  if (!user) return res.status(401).json({ message: "Unauthorized" });
+  if (!user)
+    return res.status(401).json({ message: "Unauthorized" });
 
   try {
     const [profile, codingProfile, problems, contestHistory] = await Promise.all([
@@ -52,7 +57,8 @@ router.post("/ingest", async (req, res) => {
 // Body: { question: string }
 router.post("/chat", async (req, res) => {
   const user = req.user;
-  if (!user) return res.status(401).json({ message: "Unauthorized" });
+  if (!user)
+    return res.status(401).json({ message: "Unauthorized" });
 
   const { question } = req.body as { question?: string };
   if (!question?.trim()) {
@@ -73,10 +79,6 @@ router.post("/chat", async (req, res) => {
     res.status(500).json({ message: "RAG chat failed" });
   }
 });
-
-// ── Helper: reconstruct LeetCodeSyncResult from Postgres rows ──
-import type { LeetCodeStats, LeetCodeContestHistory } from "@prisma/client";
-import type { LeetCodeSyncResult } from "../../types/coding-profiles.js";
 
 function reconstructSyncResult(
   stats: LeetCodeStats,
