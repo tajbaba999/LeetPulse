@@ -6,9 +6,8 @@ import { processLeetcodeQueue } from "../../queues/process.queue.js";
 import { verifyAccessToken } from "../../utils/tokens.js";
 
 export type ProgressPayload = { stage: string; pct: number; msg: string };
-export type StepProgress = { step: number; total: number; msg: string };
 
-function writeSSE(res: Response, event: "progress" | "completed" | "error", data: ProgressPayload | StepProgress): void {
+function writeSSE(res: Response, event: "progress" | "completed" | "error", data: ProgressPayload): void {
   res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 }
 
@@ -78,8 +77,14 @@ export async function syncStreamHandler(req: Request, res: Response): Promise<vo
       return;
     const d = args.data as { step?: number; total?: number; msg?: string } | undefined;
     if (d?.step && d?.total) {
-      const pct = Math.round((d.step / d.total) * 38);
+      // Convert fetch steps (0-45% of total) for SSE
+      const pct = Math.round((d.step / d.total) * 45);
       writeSSE(res, "progress", { stage: "fetch_step", pct, msg: d.msg ?? "" });
+    }
+    else if (d && typeof d === "object" && "msg" in d) {
+      const raw = d as ProgressPayload;
+      const pct = Math.round((raw.pct / 100) * 45);
+      writeSSE(res, "progress", { stage: raw.stage, pct, msg: raw.msg });
     }
     else {
       writeSSE(res, "progress", args.data as ProgressPayload);
@@ -89,13 +94,21 @@ export async function syncStreamHandler(req: Request, res: Response): Promise<vo
   function onFetchCompleted(args: { jobId: string }): void {
     if (args.jobId !== fetchJobId || closed)
       return;
-    writeSSE(res, "progress", { stage: "fetch_complete", pct: 38, msg: "Problems fetched, starting database save..." });
+    writeSSE(res, "progress", { stage: "fetch_complete", pct: 45, msg: "All data fetched from LeetCode, saving to database..." });
   }
 
   function onProcessProgress(args: { jobId: string; data: unknown }): void {
     if (args.jobId !== processJobId || closed)
       return;
-    writeSSE(res, "progress", args.data as ProgressPayload);
+    const d = args.data as ProgressPayload | undefined;
+    if (d?.pct !== undefined) {
+      // Map process worker pct (40-100) to SSE pct (45-100)
+      const pct = 45 + Math.round((d.pct / 100) * 55);
+      writeSSE(res, "progress", { stage: d.stage, pct, msg: d.msg });
+    }
+    else {
+      writeSSE(res, "progress", args.data as ProgressPayload);
+    }
   }
 
   function onProcessCompleted(args: { jobId: string }): void {
@@ -146,7 +159,8 @@ export async function syncStreamHandler(req: Request, res: Response): Promise<vo
       close();
       return;
     }
-    writeSSE(res, "progress", { stage: "db_save_started", pct: 40, msg: "Database save in progress..." });
+    const progress = processJob.progress as ProgressPayload | undefined;
+    writeSSE(res, "progress", progress ?? { stage: "db_save_started", pct: 45, msg: "Database save in progress..." });
     return;
   }
 
@@ -157,6 +171,6 @@ export async function syncStreamHandler(req: Request, res: Response): Promise<vo
       close();
       return;
     }
-    writeSSE(res, "progress", { stage: "fetch_started", pct: 0, msg: "Fetching LeetCode data..." });
+    writeSSE(res, "progress", { stage: "fetch_started", pct: 0, msg: "Starting LeetCode data fetch..." });
   }
 }
