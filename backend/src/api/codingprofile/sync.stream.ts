@@ -1,13 +1,14 @@
 import type { NextFunction, Request, Response } from "express";
 
+import { fetchQueueEvents, processQueueEvents } from "../../queues/events.js";
 import { fetchLeetcodeQueue } from "../../queues/fetch.queue.js";
 import { processLeetcodeQueue } from "../../queues/process.queue.js";
-import { fetchQueueEvents, processQueueEvents } from "../../queues/events.js";
 import { verifyAccessToken } from "../../utils/tokens.js";
 
 export type ProgressPayload = { stage: string; pct: number; msg: string };
+export type StepProgress = { step: number; total: number; msg: string };
 
-function writeSSE(res: Response, event: "progress" | "completed" | "error", data: ProgressPayload): void {
+function writeSSE(res: Response, event: "progress" | "completed" | "error", data: ProgressPayload | StepProgress): void {
   res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 }
 
@@ -47,14 +48,17 @@ export async function syncStreamHandler(req: Request, res: Response): Promise<vo
 
   let closed = false;
 
-  const keepalive = setInterval(() => { res.write(": keepalive\n\n"); }, 30_000);
+  const keepalive = setInterval(() => {
+    res.write(": keepalive\n\n");
+  }, 30_000);
   const timeout = setTimeout(() => {
     writeSSE(res, "error", { stage: "timeout", pct: 0, msg: "Stream timed out after 10 minutes" });
     close();
   }, 10 * 60 * 1000);
 
   function close(): void {
-    if (closed) return;
+    if (closed)
+      return;
     closed = true;
     clearTimeout(timeout);
     clearInterval(keepalive);
@@ -70,34 +74,47 @@ export async function syncStreamHandler(req: Request, res: Response): Promise<vo
   req.on("close", close);
 
   function onFetchProgress(args: { jobId: string; data: unknown }): void {
-    if (args.jobId !== fetchJobId || closed) return;
-    writeSSE(res, "progress", args.data as ProgressPayload);
+    if (args.jobId !== fetchJobId || closed)
+      return;
+    const d = args.data as { step?: number; total?: number; msg?: string } | undefined;
+    if (d?.step && d?.total) {
+      const pct = Math.round((d.step / d.total) * 38);
+      writeSSE(res, "progress", { stage: "fetch_step", pct, msg: d.msg ?? "" });
+    }
+    else {
+      writeSSE(res, "progress", args.data as ProgressPayload);
+    }
   }
 
   function onFetchCompleted(args: { jobId: string }): void {
-    if (args.jobId !== fetchJobId || closed) return;
+    if (args.jobId !== fetchJobId || closed)
+      return;
     writeSSE(res, "progress", { stage: "fetch_complete", pct: 38, msg: "Problems fetched, starting database save..." });
   }
 
   function onProcessProgress(args: { jobId: string; data: unknown }): void {
-    if (args.jobId !== processJobId || closed) return;
+    if (args.jobId !== processJobId || closed)
+      return;
     writeSSE(res, "progress", args.data as ProgressPayload);
   }
 
   function onProcessCompleted(args: { jobId: string }): void {
-    if (args.jobId !== processJobId || closed) return;
+    if (args.jobId !== processJobId || closed)
+      return;
     writeSSE(res, "completed", { stage: "completed", pct: 100, msg: "Sync complete" });
     close();
   }
 
   function onAnyFailed(args: { jobId: string; failedReason: string }): void {
-    if (args.jobId !== fetchJobId && args.jobId !== processJobId) return;
-    if (closed) return;
+    if (args.jobId !== fetchJobId && args.jobId !== processJobId)
+      return;
+    if (closed)
+      return;
     writeSSE(res, "error", { stage: "error", pct: 0, msg: args.failedReason ?? "Job failed" });
     close();
   }
 
-  // Attach listeners FIRST 
+  // Attach listeners FIRST
   fetchQueueEvents.on("progress", onFetchProgress);
   fetchQueueEvents.on("completed", onFetchCompleted);
   fetchQueueEvents.on("failed", onAnyFailed);
@@ -105,7 +122,7 @@ export async function syncStreamHandler(req: Request, res: Response): Promise<vo
   processQueueEvents.on("completed", onProcessCompleted);
   processQueueEvents.on("failed", onAnyFailed);
 
-  // Now check current state 
+  // Now check current state
   const [fetchJob, processJob] = await Promise.all([
     fetchLeetcodeQueue.getJob(fetchJobId),
     processLeetcodeQueue.getJob(processJobId),
