@@ -1,13 +1,30 @@
 import Express from "express";
 
+import { Prisma } from "@prisma/client";
+
 import prisma from "../../db.js";
 import { env } from "../../env.js";
-import { fetchLeetcodeQueue } from "../../queues/fetch.queue.js";
-import { processLeetcodeQueue } from "../../queues/process.queue.js";
+import {
+  fetchLeetCodeCalendar,
+  fetchLeetCodeContest,
+  fetchLeetCodeLanguageStats,
+  fetchLeetCodeProfile,
+  fetchLeetCodeQuestionProgress,
+  fetchLeetCodeSessionProgress,
+  fetchLeetCodeSkillStats,
+  fetchLeetCodeUserQuestions,
+} from "../../fetchers/leetcodeFetcher.js";
+import { ingestRag } from "../../services/rag/ingest.js";
+import type { LeetCodeSyncResult } from "../../types/coding-profiles.js";
+
+const toJson = (val: unknown) => val as Prisma.InputJsonValue;
+
+function writeSSE(res: Express.Response, event: string, data: Record<string, unknown>): void {
+  res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+}
 
 function extractUsername(value: string | undefined): string | undefined {
-  if (!value)
-    return undefined;
+  if (!value) return undefined;
   try {
     const url = new URL(value);
     const parts = url.pathname.split("/").filter(Boolean);
@@ -20,194 +37,501 @@ function extractUsername(value: string | undefined): string | undefined {
 
 function resolveUsername(body: string | undefined): string | undefined {
   const fromBody = extractUsername(body);
-  if (fromBody)
-    return fromBody;
+  if (fromBody) return fromBody;
   return env.LEETCODE_USERNAME?.trim() || undefined;
-}
-
-async function cleanOldJobs(userId: string): Promise<void> {
-  const fetchJobId = `fetch-leetcode-${userId}`;
-  const processJobId = `process-leetcode-${userId}`;
-  const oldFetchJob = await fetchLeetcodeQueue.getJob(fetchJobId);
-  if (oldFetchJob)
-    await oldFetchJob.remove().catch(() => {});
-  const oldProcessJob = await processLeetcodeQueue.getJob(processJobId);
-  if (oldProcessJob)
-    await oldProcessJob.remove().catch(() => {});
 }
 
 const router = Express.Router();
 
-// ── POST /codingprofile ──
-// Creates coding profile. Body is optional if LEETCODE_USERNAME is in .env.
-router.post("/", async (req, res) => {
-  try {
-    const user = req.user;
-    if (!user) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    const log = req.log.child({ userId: user.userId });
-    const raw = req.body as Record<string, string | undefined>;
-    const username = resolveUsername(raw.leetcode);
-
-    const existingProfile = await prisma.codingProfiles.findUnique({
-      where: { userId: user.userId },
-    });
-
-    if (existingProfile) {
-      log.warn("Coding profiles already exist for user");
-      return res.status(400).json({ message: "Coding profiles already exist" });
-    }
-
-    await prisma.codingProfiles.create({
-      data: { userId: user.userId, leetcode: username ?? null },
-    });
-
-    if (username) {
-      await fetchLeetcodeQueue.add(
-        "fetch-leetcode",
-        { userId: user.userId, username },
-        { priority: 3, jobId: `fetch-leetcode-${user.userId}` },
-      );
-      log.info({ username }, "Queued fetch job");
-    }
-
-    log.info("Coding profiles created successfully");
-    res.status(200).json({
-      message: "Successfully added coding profiles",
-      leetcode: username ?? null,
-      syncQueued: !!username,
-    });
-  }
-  catch (ex) {
-    req.log.error({ err: ex }, "Failed to create coding profiles");
-    res.status(500).json({ message: "Server Error!" });
-  }
-});
-
 // ── POST /codingprofile/initial-sync ──
-// After signup: creates profile + queues full sync. Body is optional if LEETCODE_USERNAME is in .env.
+// After signup: creates profile + syncs everything inline, streams SSE progress.
 router.post("/initial-sync", async (req, res) => {
-  try {
-    const user = req.user;
-    if (!user) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
+  const user = req.user;
+  if (!user) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
 
-    const log = req.log.child({ userId: user.userId });
-    const raw = req.body as Record<string, string | undefined>;
-    const username = resolveUsername(raw?.leetcode);
+  const raw = req.body as Record<string, string | undefined>;
+  const username = resolveUsername(raw?.leetcode);
 
-    if (!username) {
-      return res.status(400).json({
-        message: "LeetCode username is required. Provide in body or set LEETCODE_USERNAME in .env",
-      });
-    }
-
-    // Create profile if not exists (immutable — won't overwrite if exists)
-    const existingProfile = await prisma.codingProfiles.findUnique({
-      where: { userId: user.userId },
-    });
-
-    if (!existingProfile) {
-      await prisma.codingProfiles.create({
-        data: { userId: user.userId, leetcode: username },
-      });
-    }
-
-    // Clean old jobs then queue fresh fetch
-    await cleanOldJobs(user.userId);
-    const fetchJobId = `fetch-leetcode-${user.userId}`;
-    await fetchLeetcodeQueue.add(
-      "fetch-leetcode",
-      { userId: user.userId, username },
-      { priority: 3, jobId: fetchJobId },
-    );
-
-    log.info({ username }, "Initial sync queued");
-    res.status(202).json({
-      message: "Initial sync started",
-      username,
-      fetchJobId,
-      note: "Stream progress: GET /codingprofile/sync/stream?token=<accessToken>",
+  if (!username) {
+    return res.status(400).json({
+      message: "LeetCode username is required. Provide in body or set LEETCODE_USERNAME in .env",
     });
   }
-  catch (ex) {
-    req.log.error({ err: ex }, "Failed to start initial sync");
-    res.status(500).json({ message: "Server Error!" });
+
+  // Create profile if not exists
+  const existingProfile = await prisma.codingProfiles.findUnique({
+    where: { userId: user.userId },
+  });
+
+  if (!existingProfile) {
+    await prisma.codingProfiles.create({
+      data: { userId: user.userId, leetcode: username },
+    });
+  }
+
+  // ── Start SSE stream ──
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  const log = req.log.child({ userId: user.userId, username });
+
+  try {
+    // ── 1. Fetch profile ──
+    writeSSE(res, "progress", { stage: "fetch_profile", pct: 5, msg: "1/9: Fetching LeetCode profile..." });
+    const profile = await fetchLeetCodeProfile(username);
+    writeSSE(res, "progress", { stage: "fetch_profile_done", pct: 10, msg: `1/9: Profile fetched — ${profile.totalSolved} solved, ranking #${profile.ranking}` });
+
+    // ── 2. Fetch contest ──
+    writeSSE(res, "progress", { stage: "fetch_contest", pct: 12, msg: "2/9: Fetching contest info..." });
+    let contest: LeetCodeSyncResult["contest"] = { info: { attendedContestsCount: 0, rating: 0, globalRanking: 0, totalParticipants: 0, topPercentage: 0, badge: null }, history: [] };
+    try {
+      contest = await fetchLeetCodeContest(username);
+      writeSSE(res, "progress", { stage: "fetch_contest_done", pct: 15, msg: `2/9: Contest info fetched — rating ${contest.info.rating.toFixed(0)}, ${contest.history.length} contests` });
+    }
+    catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      writeSSE(res, "progress", { stage: "fetch_contest_skip", pct: 15, msg: `2/9: Contest fetch skipped — ${msg}` });
+    }
+
+    // ── 3. Fetch question progress ──
+    writeSSE(res, "progress", { stage: "fetch_question_progress", pct: 17, msg: "3/9: Fetching question progress..." });
+    let questionProgress: LeetCodeSyncResult["questionProgress"] = { numAcceptedQuestions: [], numFailedQuestions: [], numUntouchedQuestions: [], userSessionBeatsPercentage: [], totalQuestionBeatsPercentage: 0 };
+    try {
+      questionProgress = await fetchLeetCodeQuestionProgress(username);
+      writeSSE(res, "progress", { stage: "fetch_question_progress_done", pct: 20, msg: "3/9: Question progress fetched" });
+    }
+    catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      writeSSE(res, "progress", { stage: "fetch_question_progress_skip", pct: 20, msg: `3/9: Question progress skipped — ${msg}` });
+    }
+
+    // ── 4. Fetch session progress ──
+    writeSSE(res, "progress", { stage: "fetch_session_progress", pct: 22, msg: "4/9: Fetching session progress..." });
+    let sessionProgress: LeetCodeSyncResult["sessionProgress"] = { allQuestionsCount: [], acSubmissionNum: [], totalSubmissionNum: [] };
+    try {
+      sessionProgress = await fetchLeetCodeSessionProgress(username);
+      writeSSE(res, "progress", { stage: "fetch_session_progress_done", pct: 24, msg: "4/9: Session progress fetched" });
+    }
+    catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      writeSSE(res, "progress", { stage: "fetch_session_progress_skip", pct: 24, msg: `4/9: Session progress skipped — ${msg}` });
+    }
+
+    // ── 5. Fetch skill stats ──
+    writeSSE(res, "progress", { stage: "fetch_skill_stats", pct: 26, msg: "5/9: Fetching skill stats..." });
+    let skillStats: LeetCodeSyncResult["skillStats"] = { fundamental: [], intermediate: [], advanced: [] };
+    try {
+      skillStats = await fetchLeetCodeSkillStats(username);
+      const totalTags = skillStats.fundamental.length + skillStats.intermediate.length + skillStats.advanced.length;
+      writeSSE(res, "progress", { stage: "fetch_skill_stats_done", pct: 28, msg: `5/9: Skill stats fetched — ${totalTags} topics` });
+    }
+    catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      writeSSE(res, "progress", { stage: "fetch_skill_stats_skip", pct: 28, msg: `5/9: Skill stats skipped — ${msg}` });
+    }
+
+    // ── 6. Fetch language stats ──
+    writeSSE(res, "progress", { stage: "fetch_language_stats", pct: 30, msg: "6/9: Fetching language stats..." });
+    let languageStats: LeetCodeSyncResult["languageStats"] = [];
+    try {
+      languageStats = await fetchLeetCodeLanguageStats(username);
+      writeSSE(res, "progress", { stage: "fetch_language_stats_done", pct: 32, msg: `6/9: Language stats fetched — ${languageStats.length} languages` });
+    }
+    catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      writeSSE(res, "progress", { stage: "fetch_language_stats_skip", pct: 32, msg: `6/9: Language stats skipped — ${msg}` });
+    }
+
+    // ── 7. Fetch calendar ──
+    writeSSE(res, "progress", { stage: "fetch_calendar", pct: 34, msg: "7/9: Fetching activity calendar..." });
+    let calendar: LeetCodeSyncResult["calendar"] = { activeYears: [], streak: 0, totalActiveDays: 0, dccBadges: [], submissionCalendar: {} };
+    try {
+      calendar = await fetchLeetCodeCalendar(username);
+      writeSSE(res, "progress", { stage: "fetch_calendar_done", pct: 36, msg: `7/9: Calendar fetched — ${calendar.totalActiveDays} active days, streak ${calendar.streak}` });
+    }
+    catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      writeSSE(res, "progress", { stage: "fetch_calendar_skip", pct: 36, msg: `7/9: Calendar skipped — ${msg}` });
+    }
+
+    const syncResult: LeetCodeSyncResult = { profile, contest, questionProgress, sessionProgress, skillStats, languageStats, calendar };
+
+    // ── 8. Fetch all solved questions using totalSolved from profile ──
+    writeSSE(res, "progress", { stage: "fetch_questions", pct: 38, msg: `8/9: Fetching ${profile.totalSolved} solved questions (paginated)...` });
+    let allProblems: Array<{ titleSlug: string; title: string; difficulty: string; questionStatus: string; lastResult: string; lastSubmittedAt: string; numSubmitted: number; topicTags: Array<{ name: string; nameTranslated: string; slug: string }> }> = [];
+
+    try {
+      const PAGE_SIZE = 50;
+      let skip = 0;
+      const totalToFetch = profile.totalSolved;
+
+      while (skip < totalToFetch) {
+        writeSSE(res, "progress", {
+          stage: "fetch_questions",
+          pct: 38 + Math.round((skip / totalToFetch) * 7),
+          msg: `8/9: Fetching questions ${skip + 1}–${Math.min(skip + PAGE_SIZE, totalToFetch)} of ${totalToFetch}...`,
+        });
+
+        const page = await fetchLeetCodeUserQuestions(username, skip, PAGE_SIZE);
+        if (page.questions.length === 0) break;
+
+        allProblems = [...allProblems, ...page.questions.map(q => ({
+          titleSlug: q.titleSlug,
+          title: q.title,
+          difficulty: q.difficulty,
+          questionStatus: q.questionStatus,
+          lastResult: q.lastResult,
+          lastSubmittedAt: q.lastSubmittedAt,
+          numSubmitted: q.numSubmitted,
+          topicTags: q.topicTags,
+        }))];
+        skip += PAGE_SIZE;
+
+        if (skip < totalToFetch) {
+          await new Promise(r => setTimeout(r, 300));
+        }
+      }
+
+      writeSSE(res, "progress", { stage: "fetch_questions_done", pct: 45, msg: `8/9: Fetched ${allProblems.length} solved questions` });
+    }
+    catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      writeSSE(res, "progress", { stage: "fetch_questions_skip", pct: 45, msg: `8/9: Question fetch skipped (need LEETCODE_SESSION cookie) — ${msg}` });
+    }
+
+    // ── 9. Save to database ──
+    writeSSE(res, "progress", { stage: "db_save", pct: 46, msg: "9/9: Saving to database..." });
+
+    // Save stats
+    await prisma.leetCodeStats.upsert({
+      where: { userId: user.userId },
+      create: {
+        userId: user.userId,
+        username,
+        totalSolved: profile.totalSolved,
+        totalQuestions: profile.totalQuestions,
+        easySolved: profile.easySolved,
+        mediumSolved: profile.mediumSolved,
+        hardSolved: profile.hardSolved,
+        ranking: profile.ranking,
+        acceptanceRate: profile.acceptanceRate,
+        streak: calendar.streak,
+        contestRating: contest.info.rating,
+        contestGlobalRanking: contest.info.globalRanking,
+        contestTopPercentage: contest.info.topPercentage,
+        attendedContestsCount: contest.info.attendedContestsCount,
+        questionProgress: toJson(questionProgress),
+        skillStats: toJson(skillStats),
+        languageStats: toJson(languageStats),
+        recentSubmissions: toJson(profile.recentSubmissions),
+        calendarData: toJson({
+          activeYears: calendar.activeYears,
+          totalActiveDays: calendar.totalActiveDays,
+          submissionCalendar: calendar.submissionCalendar,
+        }),
+      },
+      update: {
+        username,
+        totalSolved: profile.totalSolved,
+        totalQuestions: profile.totalQuestions,
+        easySolved: profile.easySolved,
+        mediumSolved: profile.mediumSolved,
+        hardSolved: profile.hardSolved,
+        ranking: profile.ranking,
+        acceptanceRate: profile.acceptanceRate,
+        streak: calendar.streak,
+        contestRating: contest.info.rating,
+        contestGlobalRanking: contest.info.globalRanking,
+        contestTopPercentage: contest.info.topPercentage,
+        attendedContestsCount: contest.info.attendedContestsCount,
+        questionProgress: toJson(questionProgress),
+        skillStats: toJson(skillStats),
+        languageStats: toJson(languageStats),
+        recentSubmissions: toJson(profile.recentSubmissions),
+        calendarData: toJson({
+          activeYears: calendar.activeYears,
+          totalActiveDays: calendar.totalActiveDays,
+          submissionCalendar: calendar.submissionCalendar,
+        }),
+      },
+    });
+    writeSSE(res, "progress", { stage: "db_stats_done", pct: 52, msg: "Stats saved to LeetCodeStats" });
+
+    // Save problems
+    if (allProblems.length > 0) {
+      await prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`DELETE FROM "LeetCodeProblem" WHERE "userId" = ${user.userId}`;
+        const batchSize = 100;
+        for (let i = 0; i < allProblems.length; i += batchSize) {
+          const batch = allProblems.slice(i, i + batchSize);
+          await tx.leetCodeProblem.createMany({
+            data: batch.map(p => ({
+              userId: user.userId,
+              titleSlug: p.titleSlug,
+              title: p.title,
+              difficulty: p.difficulty,
+              questionStatus: p.questionStatus,
+              lastResult: p.lastResult,
+              lastSubmittedAt: p.lastSubmittedAt,
+              numSubmitted: p.numSubmitted,
+              topicTags: toJson(p.topicTags),
+            })),
+          });
+          writeSSE(res, "progress", {
+            stage: "db_problems",
+            pct: 52 + Math.round((i + batch.length) / allProblems.length * 6),
+            msg: `Saved ${Math.min(i + batchSize, allProblems.length)}/${allProblems.length} questions to database...`,
+          });
+        }
+      });
+      writeSSE(res, "progress", { stage: "db_problems_done", pct: 58, msg: `${allProblems.length} questions saved with topic tags` });
+    }
+
+    // Save contest history
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`DELETE FROM "LeetCodeContestHistory" WHERE "userId" = ${user.userId}`;
+      if (contest.history.length > 0) {
+        await tx.leetCodeContestHistory.createMany({
+          data: contest.history.map(e => ({
+            userId: user.userId,
+            contestTitle: e.contest.title,
+            startTime: e.contest.startTime,
+            attended: e.attended,
+            rating: e.rating,
+            ranking: e.ranking,
+            trendDirection: e.trendDirection,
+            problemsSolved: e.problemsSolved,
+            totalProblems: e.totalProblems,
+            finishTimeInSeconds: e.finishTimeInSeconds,
+          })),
+        });
+      }
+    });
+    writeSSE(res, "progress", { stage: "db_contests_done", pct: 60, msg: `${contest.history.length} contest entries saved` });
+
+    // Save history snapshot
+    await prisma.leetCodeHistory.create({
+      data: {
+        userId: user.userId,
+        username,
+        totalSolved: profile.totalSolved,
+        totalQuestions: profile.totalQuestions,
+        easySolved: profile.easySolved,
+        mediumSolved: profile.mediumSolved,
+        hardSolved: profile.hardSolved,
+        ranking: profile.ranking,
+        acceptanceRate: profile.acceptanceRate,
+        streak: calendar.streak,
+        contestRating: contest.info.rating,
+        contestGlobalRanking: contest.info.globalRanking,
+        contestTopPercentage: contest.info.topPercentage,
+        attendedContestsCount: contest.info.attendedContestsCount,
+        problemsSolvedList: allProblems.length > 0
+          ? toJson(allProblems.map(p => ({
+              titleSlug: p.titleSlug,
+              title: p.title,
+              difficulty: p.difficulty,
+              lastResult: p.lastResult,
+              lastSubmittedAt: p.lastSubmittedAt,
+              topicTags: p.topicTags,
+            })))
+          : Prisma.JsonNull,
+        contestHistory: contest.history.length > 0
+          ? toJson(contest.history.map(e => ({
+              title: e.contest.title,
+              startTime: e.contest.startTime,
+              rating: e.rating,
+              ranking: e.ranking,
+              problemsSolved: e.problemsSolved,
+              totalProblems: e.totalProblems,
+            })))
+          : Prisma.JsonNull,
+        skillStats: toJson(skillStats),
+        languageStats: toJson(languageStats),
+      },
+    });
+    writeSSE(res, "progress", { stage: "history_done", pct: 62, msg: "History snapshot saved" });
+
+    // ── RAG ingest ──
+    writeSSE(res, "progress", { stage: "rag_started", pct: 64, msg: `Building RAG documents from ${allProblems.length + 10} data chunks...` });
+    try {
+      const ragResult = await ingestRag(user.userId, username, syncResult, allProblems, async (_stage, pct, msg) => {
+        writeSSE(res, "progress", { stage: "rag_progress", pct: 64 + Math.round((pct / 100) * 36), msg });
+      });
+      writeSSE(res, "progress", {
+        stage: "completed",
+        pct: 100,
+        msg: `Sync complete! ${profile.totalSolved} solved, ${allProblems.length} questions saved, ${ragResult.upserted} RAG chunks indexed`,
+      });
+    }
+    catch (ragErr) {
+      const errMsg = ragErr instanceof Error ? ragErr.message : String(ragErr);
+      log.warn({ err: errMsg }, "RAG ingest failed");
+      writeSSE(res, "progress", {
+        stage: "completed",
+        pct: 100,
+        msg: `DB sync complete! ${profile.totalSolved} solved, ${allProblems.length} questions saved. AI indexing skipped: ${errMsg}`,
+      });
+    }
+
+    writeSSE(res, "done", { stage: "done", pct: 100, msg: "Sync finished" });
+    res.end();
+  }
+  catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    log.error({ err: msg }, "Sync failed");
+    writeSSE(res, "error", { stage: "error", pct: 0, msg: `Sync failed: ${msg}` });
+    res.end();
   }
 });
 
 // ── POST /codingprofile/sync ──
-// Smart sync: compares DB vs live LeetCode, picks optimal strategy.
+// Smart sync: compares DB vs live, picks strategy, streams SSE progress.
 router.post("/sync", async (req, res) => {
-  try {
-    const user = req.user;
-    if (!user) {
-      return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    const log = req.log.child({ userId: user.userId });
-
-    const profile = await prisma.codingProfiles.findUnique({
-      where: { userId: user.userId },
-    });
-
-    if (!profile) {
-      return res.status(404).json({ message: "No coding profile linked. Call POST /codingprofile first." });
-    }
-
-    const username = profile.leetcode || env.LEETCODE_USERNAME?.trim();
-    if (!username) {
-      return res.status(400).json({ message: "No LeetCode username linked." });
-    }
-
-    // Compare DB vs live
-    const dbStats = await prisma.leetCodeStats.findUnique({
-      where: { userId: user.userId },
-      select: { totalSolved: true },
-    });
-    const dbSolved = dbStats?.totalSolved ?? 0;
-
-    let liveSolved = 0;
-    try {
-      const { fetchLeetCodeProfile } = await import("../../fetchers/leetcodeFetcher.js");
-      const liveProfile = await fetchLeetCodeProfile(username);
-      liveSolved = liveProfile.totalSolved;
-    }
-    catch {
-      log.warn("Could not fetch live LeetCode profile, falling back to full sync");
-    }
-
-    const diff = Math.abs(liveSolved - dbSolved);
-    let strategy: "full" | "progress" | "incremental";
-
-    if (dbSolved === 0 || dbSolved > liveSolved)
-      strategy = "full";
-    else if (diff > 20)
-      strategy = "progress";
-    else strategy = "incremental";
-
-    await cleanOldJobs(user.userId);
-    await fetchLeetcodeQueue.add(
-      "fetch-leetcode",
-      { userId: user.userId, username },
-      { priority: 1, jobId: `fetch-leetcode-${user.userId}` },
-    );
-
-    res.status(202).json({
-      message: `Sync started (${strategy})`,
-      username,
-      strategy,
-      dbSolved,
-      liveSolved,
-      diff,
-    });
+  const user = req.user;
+  if (!user) {
+    return res.status(401).json({ message: "Unauthorized" });
   }
-  catch (ex) {
-    req.log.error({ err: ex }, "Failed to start sync");
-    res.status(500).json({ message: "Server Error!" });
+
+  const profile = await prisma.codingProfiles.findUnique({
+    where: { userId: user.userId },
+  });
+
+  if (!profile) {
+    return res.status(404).json({ message: "No coding profile linked. Call POST /codingprofile/initial-sync first." });
+  }
+
+  const username = profile.leetcode || env.LEETCODE_USERNAME?.trim();
+  if (!username) {
+    return res.status(400).json({ message: "No LeetCode username linked." });
+  }
+
+  // Same flow as initial-sync — set body and run
+  req.body = { leetcode: username };
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  const log = req.log.child({ userId: user.userId, username });
+
+  try {
+    writeSSE(res, "progress", { stage: "fetch_profile", pct: 5, msg: "1/9: Fetching LeetCode profile..." });
+    const liveProfile = await fetchLeetCodeProfile(username);
+    writeSSE(res, "progress", { stage: "fetch_profile_done", pct: 10, msg: `1/9: Profile — ${liveProfile.totalSolved} solved, #${liveProfile.ranking}` });
+
+    let contest: LeetCodeSyncResult["contest"] = { info: { attendedContestsCount: 0, rating: 0, globalRanking: 0, totalParticipants: 0, topPercentage: 0, badge: null }, history: [] };
+    let questionProgress: LeetCodeSyncResult["questionProgress"] = { numAcceptedQuestions: [], numFailedQuestions: [], numUntouchedQuestions: [], userSessionBeatsPercentage: [], totalQuestionBeatsPercentage: 0 };
+    let sessionProgress: LeetCodeSyncResult["sessionProgress"] = { allQuestionsCount: [], acSubmissionNum: [], totalSubmissionNum: [] };
+    let skillStats: LeetCodeSyncResult["skillStats"] = { fundamental: [], intermediate: [], advanced: [] };
+    let languageStats: LeetCodeSyncResult["languageStats"] = [];
+    let calendar: LeetCodeSyncResult["calendar"] = { activeYears: [], streak: 0, totalActiveDays: 0, dccBadges: [], submissionCalendar: {} };
+
+    const safeFetch = async <T>(label: string, step: number, fn: () => Promise<T>, fallback: T): Promise<T> => {
+      writeSSE(res, "progress", { stage: `fetch_${label}`, pct: step * 5, msg: `${step}/9: Fetching ${label}...` });
+      try {
+        const result = await fn();
+        writeSSE(res, "progress", { stage: `fetch_${label}_done`, pct: step * 5 + 2, msg: `${step}/9: ${label} fetched` });
+        return result;
+      }
+      catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        writeSSE(res, "progress", { stage: `fetch_${label}_skip`, pct: step * 5 + 2, msg: `${step}/9: ${label} skipped — ${msg}` });
+        return fallback;
+      }
+    };
+
+    contest = await safeFetch("contest", 2, () => fetchLeetCodeContest(username), contest);
+    questionProgress = await safeFetch("question progress", 3, () => fetchLeetCodeQuestionProgress(username), questionProgress);
+    sessionProgress = await safeFetch("session progress", 4, () => fetchLeetCodeSessionProgress(username), sessionProgress);
+    skillStats = await safeFetch("skill stats", 5, () => fetchLeetCodeSkillStats(username), skillStats);
+    languageStats = await safeFetch("language stats", 6, () => fetchLeetCodeLanguageStats(username), languageStats);
+    calendar = await safeFetch("calendar", 7, () => fetchLeetCodeCalendar(username), calendar);
+
+    const syncResult: LeetCodeSyncResult = { profile: liveProfile, contest, questionProgress, sessionProgress, skillStats, languageStats, calendar };
+
+    // Fetch questions
+    writeSSE(res, "progress", { stage: "fetch_questions", pct: 38, msg: `8/9: Fetching ${liveProfile.totalSolved} solved questions...` });
+    let allProblems: Array<{ titleSlug: string; title: string; difficulty: string; questionStatus: string; lastResult: string; lastSubmittedAt: string; numSubmitted: number; topicTags: Array<{ name: string; nameTranslated: string; slug: string }> }> = [];
+
+    try {
+      const PAGE_SIZE = 50;
+      let skip = 0;
+      while (skip < liveProfile.totalSolved) {
+        writeSSE(res, "progress", { stage: "fetch_questions", pct: 38 + Math.round((skip / liveProfile.totalSolved) * 7), msg: `8/9: Questions ${skip + 1}–${Math.min(skip + PAGE_SIZE, liveProfile.totalSolved)} of ${liveProfile.totalSolved}...` });
+        const page = await fetchLeetCodeUserQuestions(username, skip, PAGE_SIZE);
+        if (page.questions.length === 0) break;
+        allProblems = [...allProblems, ...page.questions.map(q => ({ titleSlug: q.titleSlug, title: q.title, difficulty: q.difficulty, questionStatus: q.questionStatus, lastResult: q.lastResult, lastSubmittedAt: q.lastSubmittedAt, numSubmitted: q.numSubmitted, topicTags: q.topicTags }))];
+        skip += PAGE_SIZE;
+        if (skip < liveProfile.totalSolved) await new Promise(r => setTimeout(r, 300));
+      }
+      writeSSE(res, "progress", { stage: "fetch_questions_done", pct: 45, msg: `8/9: Fetched ${allProblems.length} questions` });
+    }
+    catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      writeSSE(res, "progress", { stage: "fetch_questions_skip", pct: 45, msg: `8/9: Questions skipped — ${msg}` });
+    }
+
+    // DB save
+    writeSSE(res, "progress", { stage: "db_save", pct: 46, msg: "9/9: Saving to database..." });
+    await prisma.leetCodeStats.upsert({
+      where: { userId: user.userId },
+      create: { userId: user.userId, username, totalSolved: liveProfile.totalSolved, totalQuestions: liveProfile.totalQuestions, easySolved: liveProfile.easySolved, mediumSolved: liveProfile.mediumSolved, hardSolved: liveProfile.hardSolved, ranking: liveProfile.ranking, acceptanceRate: liveProfile.acceptanceRate, streak: calendar.streak, contestRating: contest.info.rating, contestGlobalRanking: contest.info.globalRanking, contestTopPercentage: contest.info.topPercentage, attendedContestsCount: contest.info.attendedContestsCount, questionProgress: toJson(questionProgress), skillStats: toJson(skillStats), languageStats: toJson(languageStats), recentSubmissions: toJson(liveProfile.recentSubmissions), calendarData: toJson({ activeYears: calendar.activeYears, totalActiveDays: calendar.totalActiveDays, submissionCalendar: calendar.submissionCalendar }) },
+      update: { username, totalSolved: liveProfile.totalSolved, totalQuestions: liveProfile.totalQuestions, easySolved: liveProfile.easySolved, mediumSolved: liveProfile.mediumSolved, hardSolved: liveProfile.hardSolved, ranking: liveProfile.ranking, acceptanceRate: liveProfile.acceptanceRate, streak: calendar.streak, contestRating: contest.info.rating, contestGlobalRanking: contest.info.globalRanking, contestTopPercentage: contest.info.topPercentage, attendedContestsCount: contest.info.attendedContestsCount, questionProgress: toJson(questionProgress), skillStats: toJson(skillStats), languageStats: toJson(languageStats), recentSubmissions: toJson(liveProfile.recentSubmissions), calendarData: toJson({ activeYears: calendar.activeYears, totalActiveDays: calendar.totalActiveDays, submissionCalendar: calendar.submissionCalendar }) },
+    });
+    writeSSE(res, "progress", { stage: "db_stats_done", pct: 52, msg: "Stats saved" });
+
+    if (allProblems.length > 0) {
+      await prisma.$transaction(async (tx) => {
+        await tx.$executeRaw`DELETE FROM "LeetCodeProblem" WHERE "userId" = ${user.userId}`;
+        const batchSize = 100;
+        for (let i = 0; i < allProblems.length; i += batchSize) {
+          const batch = allProblems.slice(i, i + batchSize);
+          await tx.leetCodeProblem.createMany({ data: batch.map(p => ({ userId: user.userId, titleSlug: p.titleSlug, title: p.title, difficulty: p.difficulty, questionStatus: p.questionStatus, lastResult: p.lastResult, lastSubmittedAt: p.lastSubmittedAt, numSubmitted: p.numSubmitted, topicTags: toJson(p.topicTags) })) });
+        }
+      });
+      writeSSE(res, "progress", { stage: "db_problems_done", pct: 58, msg: `${allProblems.length} questions saved` });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`DELETE FROM "LeetCodeContestHistory" WHERE "userId" = ${user.userId}`;
+      if (contest.history.length > 0) {
+        await tx.leetCodeContestHistory.createMany({ data: contest.history.map(e => ({ userId: user.userId, contestTitle: e.contest.title, startTime: e.contest.startTime, attended: e.attended, rating: e.rating, ranking: e.ranking, trendDirection: e.trendDirection, problemsSolved: e.problemsSolved, totalProblems: e.totalProblems, finishTimeInSeconds: e.finishTimeInSeconds })) });
+      }
+    });
+
+    await prisma.leetCodeHistory.create({
+      data: { userId: user.userId, username, totalSolved: liveProfile.totalSolved, totalQuestions: liveProfile.totalQuestions, easySolved: liveProfile.easySolved, mediumSolved: liveProfile.mediumSolved, hardSolved: liveProfile.hardSolved, ranking: liveProfile.ranking, acceptanceRate: liveProfile.acceptanceRate, streak: calendar.streak, contestRating: contest.info.rating, contestGlobalRanking: contest.info.globalRanking, contestTopPercentage: contest.info.topPercentage, attendedContestsCount: contest.info.attendedContestsCount, problemsSolvedList: allProblems.length > 0 ? toJson(allProblems.map(p => ({ titleSlug: p.titleSlug, title: p.title, difficulty: p.difficulty, lastResult: p.lastResult, lastSubmittedAt: p.lastSubmittedAt, topicTags: p.topicTags }))) : Prisma.JsonNull, contestHistory: contest.history.length > 0 ? toJson(contest.history.map(e => ({ title: e.contest.title, startTime: e.contest.startTime, rating: e.rating, ranking: e.ranking, problemsSolved: e.problemsSolved, totalProblems: e.totalProblems }))) : Prisma.JsonNull, skillStats: toJson(skillStats), languageStats: toJson(languageStats) },
+    });
+    writeSSE(res, "progress", { stage: "history_done", pct: 62, msg: "History snapshot saved" });
+
+    writeSSE(res, "progress", { stage: "rag_started", pct: 64, msg: `Building RAG documents...` });
+    try {
+      const ragResult = await ingestRag(user.userId, username, syncResult, allProblems, async (_stage, pct, msg) => {
+        writeSSE(res, "progress", { stage: "rag_progress", pct: 64 + Math.round((pct / 100) * 36), msg });
+      });
+      writeSSE(res, "progress", { stage: "completed", pct: 100, msg: `Sync complete! ${liveProfile.totalSolved} solved, ${allProblems.length} questions, ${ragResult.upserted} RAG chunks` });
+    }
+    catch (ragErr) {
+      const errMsg = ragErr instanceof Error ? ragErr.message : String(ragErr);
+      writeSSE(res, "progress", { stage: "completed", pct: 100, msg: `DB sync complete! ${liveProfile.totalSolved} solved, ${allProblems.length} questions. RAG skipped: ${errMsg}` });
+    }
+
+    writeSSE(res, "done", { stage: "done", pct: 100, msg: "Sync finished" });
+    res.end();
+  }
+  catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    log.error({ err: msg }, "Sync failed");
+    writeSSE(res, "error", { stage: "error", pct: 0, msg: `Sync failed: ${msg}` });
+    res.end();
   }
 });
 
@@ -257,24 +581,12 @@ router.get("/history", async (req, res) => {
       orderBy: { snapshotAt: "desc" },
       take: limit,
       select: {
-        id: true,
-        snapshotAt: true,
-        totalSolved: true,
-        totalQuestions: true,
-        easySolved: true,
-        mediumSolved: true,
-        hardSolved: true,
-        ranking: true,
-        acceptanceRate: true,
-        streak: true,
-        contestRating: true,
-        contestGlobalRanking: true,
-        contestTopPercentage: true,
-        attendedContestsCount: true,
-        problemsSolvedList: true,
-        contestHistory: true,
-        skillStats: true,
-        languageStats: true,
+        id: true, snapshotAt: true, totalSolved: true, totalQuestions: true,
+        easySolved: true, mediumSolved: true, hardSolved: true, ranking: true,
+        acceptanceRate: true, streak: true, contestRating: true,
+        contestGlobalRanking: true, contestTopPercentage: true,
+        attendedContestsCount: true, problemsSolvedList: true,
+        contestHistory: true, skillStats: true, languageStats: true,
       },
     });
 
@@ -352,8 +664,7 @@ router.get("/history/diff", async (req, res) => {
 });
 
 // ── GET /codingprofile/activity ──
-// Returns parsed submission calendar for activity queries.
-// Query params: ?year=2026&month=7 (both optional)
+// Returns all submission calendar data.
 router.get("/activity", async (req, res) => {
   try {
     const user = req.user;
@@ -363,7 +674,7 @@ router.get("/activity", async (req, res) => {
 
     const stats = await prisma.leetCodeStats.findUnique({
       where: { userId: user.userId },
-      select: { calendarData: true },
+      select: { calendarData: true, streak: true, username: true },
     });
 
     if (!stats?.calendarData) {
@@ -373,38 +684,38 @@ router.get("/activity", async (req, res) => {
     const cal = stats.calendarData as Record<string, unknown>;
     const rawCalendar = (cal.submissionCalendar ?? {}) as Record<string, number>;
 
-    // Parse timestamps into date-keyed format
-    const days: Array<{ date: string; dayOfWeek: number; submissions: number }> = [];
-    for (const [ts, count] of Object.entries(rawCalendar)) {
-      const d = new Date(Number(ts) * 1000);
-      days.push({
-        date: d.toISOString().split("T")[0],
-        dayOfWeek: d.getDay(),
-        submissions: count,
-      });
-    }
-    days.sort((a, b) => a.date.localeCompare(b.date));
-
     const year = req.query.year ? Number(req.query.year) : undefined;
     const month = req.query.month ? Number(req.query.month) : undefined;
 
-    let filtered = days;
-    if (year)
-      filtered = filtered.filter(d => d.date.startsWith(String(year)));
-    if (month)
-      filtered = filtered.filter(d => d.date.startsWith(`${year ?? new Date().getFullYear()}-${String(month).padStart(2, "0")}`));
+    const days: Array<{ date: string; dayOfWeek: number; submissions: number; timestamp: number }> = [];
+    for (const [ts, count] of Object.entries(rawCalendar)) {
+      const timestamp = Number(ts);
+      const d = new Date(timestamp * 1000);
+      const dateStr = d.toISOString().split("T")[0];
 
-    const totalDays = filtered.length;
-    const totalSubmissions = filtered.reduce((sum, d) => sum + d.submissions, 0);
+      if (year && !dateStr.startsWith(String(year))) continue;
+      if (month && !dateStr.startsWith(`${year ?? new Date().getFullYear()}-${String(month).padStart(2, "0")}`)) continue;
+
+      days.push({
+        date: dateStr,
+        dayOfWeek: d.getDay(),
+        submissions: count,
+        timestamp,
+      });
+    }
+    days.sort((a, b) => a.timestamp - b.timestamp);
+
+    const totalSubmissions = days.reduce((sum, d) => sum + d.submissions, 0);
 
     res.status(200).json({
+      username: stats.username,
       activeYears: cal.activeYears,
       totalActiveDays: cal.totalActiveDays,
-      streak: cal.streak,
+      streak: stats.streak,
       query: { year: year ?? "all", month: month ?? "all" },
-      totalDaysActive: totalDays,
+      totalDaysActive: days.length,
       totalSubmissions,
-      days: filtered,
+      submissions: days,
     });
   }
   catch (ex) {
@@ -415,7 +726,6 @@ router.get("/activity", async (req, res) => {
 
 // ── GET /codingprofile/questions ──
 // Returns all solved problems with topic tags from DB.
-// Query params: ?difficulty=easy&tag=arrays&limit=50
 router.get("/questions", async (req, res) => {
   try {
     const user = req.user;
@@ -457,7 +767,6 @@ router.get("/questions", async (req, res) => {
       difficulty: difficulty ?? "all",
       tag: tag ?? "all",
       questions: sliced.map(p => ({
-        frontendId: p.titleSlug.split("-").pop() ?? "",
         title: p.title,
         titleSlug: p.titleSlug,
         difficulty: p.difficulty,
