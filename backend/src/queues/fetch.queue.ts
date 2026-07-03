@@ -7,7 +7,7 @@ export const fetchLeetcodeQueue = new Queue("fetch-leetcode", {
   defaultJobOptions: {
     attempts: 3,
     backoff: { type: "exponential" as const, delay: 2000 },
-    removeOnComplete: true,
+    removeOnComplete: { age: 600 },
     removeOnFail: false,
   },
 });

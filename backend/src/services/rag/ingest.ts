@@ -6,11 +6,14 @@ import { getChangedChunks, saveChunkHashes } from "./chunk-hasher.js";
 import { embedChunks } from "./embeddings.js";
 import { upsertChunks } from "./pinecone.js";
 
+export type IngestProgressCallback = (stage: string, pct: number, msg: string) => void | Promise<void>;
+
 export async function ingestRag(
   userId: string,
   username: string,
   syncResult: LeetCodeSyncResult,
   problems: RawProblem[],
+  onProgress?: IngestProgressCallback,
 ): Promise<{ upserted: number; skipped: number }> {
   const allChunks = buildChunks(username, syncResult, problems);
   const changedChunks = await getChangedChunks(userId, allChunks);
@@ -19,7 +22,10 @@ export async function ingestRag(
     return { upserted: 0, skipped: allChunks.length };
   }
 
+  await onProgress?.("embedding_started", 65, `Embedding ${changedChunks.length} changed chunks...`);
   const withVectors = await embedChunks(changedChunks);
+
+  await onProgress?.("pinecone_started", 80, `Upserting ${changedChunks.length} vectors to Pinecone...`);
   await upsertChunks(userId, withVectors);
   await saveChunkHashes(userId, changedChunks);
 

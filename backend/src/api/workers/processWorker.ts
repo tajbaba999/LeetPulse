@@ -17,6 +17,7 @@ const processWorker = new Worker(
     const { userId, username, syncResult, problems } = job.data as ProcessJobData;
     const { profile, contest, questionProgress, sessionProgress, skillStats, languageStats, calendar } = syncResult;
 
+    await job.updateProgress({ stage: "db_save_started", pct: 40, msg: "Saving stats to database..." });
     job.log(`[process] Saving stats for ${username} to Postgres`);
 
     // ── 1. Upsert LeetCodeStats ──
@@ -107,10 +108,19 @@ const processWorker = new Worker(
       }
     });
 
+    await job.updateProgress({ stage: "db_saved", pct: 60, msg: "Database save complete" });
     job.log(`[process] Postgres save complete`);
 
     // ── 4. RAG ingest ──
-    const ragResult = await ingestRag(userId, username, syncResult, problems);
+    await job.updateProgress({ stage: "rag_started", pct: 62, msg: "Starting AI indexing..." });
+    const ragResult = await ingestRag(userId, username, syncResult, problems, async (stage, pct, msg) => {
+      await job.updateProgress({ stage, pct, msg });
+    });
+    await job.updateProgress({
+      stage: "completed",
+      pct: 100,
+      msg: `Sync complete: ${ragResult.upserted} indexed, ${ragResult.skipped} unchanged`,
+    });
     job.log(`[process] RAG ingest: ${ragResult.upserted} upserted, ${ragResult.skipped} skipped`);
   },
   { connection, concurrency: 2 },

@@ -18,13 +18,20 @@ const fetchWorker = new Worker(
   fetchLeetcodeQueue.name,
   async (job) => {
     const { userId, username } = job.data as SyncJobData;
+
+    await job.updateProgress({ stage: "fetch_started", pct: 0, msg: `Starting sync for ${username}...` });
     job.log(`[fetch] Starting LeetCode fetch for ${username}`);
 
-    // Step 1: Fetch all summary stats (7 parallel GraphQL queries — no rate-limit concern)
+    // Step 1: Fetch all summary stats (7 parallel GraphQL queries)
     const syncResult = await fetchLeetCodeFullSync(username);
+    await job.updateProgress({
+      stage: "profile_fetched",
+      pct: 10,
+      msg: `Profile fetched: ${syncResult.profile.totalSolved} problems solved`,
+    });
     job.log(`[fetch] Summary sync complete: ${syncResult.profile.totalSolved} solved`);
 
-    // Step 2: Fetch solved problem list (sequential, 2s gap per page to respect LeetCode rate limits)
+    // Step 2: Fetch solved problem list (sequential, 1s gap per page)
     const problems: RawProblem[] = [];
     const session = process.env.LEETCODE_SESSION;
     const csrf = process.env.LEETCODE_CSRF;
@@ -38,17 +45,32 @@ const fetchWorker = new Worker(
       let skip = 0;
       const limit = 50;
       let hasMore = true;
+      let pageNum = 0;
 
       while (hasMore) {
         const batch = await lc.user_progress_questions({ skip, limit });
         problems.push(...(batch.questions as RawProblem[]));
         hasMore = batch.questions.length === limit;
         skip += limit;
+        pageNum++;
+
+        const pct = Math.min(10 + pageNum * 5, 35);
+        await job.updateProgress({
+          stage: "page_fetched",
+          pct,
+          msg: `Fetched page ${pageNum} — ${problems.length} problems so far`,
+        });
+
         if (hasMore) {
-          await sleep(2000);
+          await sleep(1000);
         }
       }
-      job.log(`[fetch] Fetched ${problems.length} problems (${Math.ceil(problems.length / limit)} pages)`);
+      await job.updateProgress({
+        stage: "all_fetched",
+        pct: 38,
+        msg: `All ${problems.length} problems fetched (${pageNum} pages)`,
+      });
+      job.log(`[fetch] Fetched ${problems.length} problems (${pageNum} pages)`);
     }
     else {
       job.log(`[fetch] LEETCODE_SESSION/CSRF not set — skipping problem fetch`);
