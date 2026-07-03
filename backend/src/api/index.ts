@@ -10,6 +10,7 @@ import CodingProfile from "./codingprofile/codingprofile.js";
 import LeetCode from "./leetcode/leetcode.js";
 import Metrics from "./metrics/metrics.js";
 import Profile from "./profile.js";
+import Rag from "./rag/rag.js";
 
 const router = express.Router();
 
@@ -30,5 +31,6 @@ router.use(authenticateToken);
 
 router.use("/profile", Profile);
 router.use("/codingprofile", CodingProfile);
+router.use("/rag", Rag);
 
 export default router;
