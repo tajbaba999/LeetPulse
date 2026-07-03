@@ -13,3 +13,9 @@ post {
 auth:bearer {
   token: {{accessToken}}
 }
+
+script:post-response {
+  const body = res.getBody();
+  if (body.jobId) bru.setVar("syncJobId", body.jobId);
+  if (body.processJobId) bru.setVar("syncProcessJobId", body.processJobId);
+}

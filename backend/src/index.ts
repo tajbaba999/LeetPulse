@@ -3,6 +3,7 @@ import "dotenv/config";
 import app from "./app.js";
 import { env } from "./env.js";
 import logger from "./utils/logger.js";
+import "./queues/events.js";
 import "./api/workers/fetchWorker.js";
 import "./api/workers/processWorker.js";
 
