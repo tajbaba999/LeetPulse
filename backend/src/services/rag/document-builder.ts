@@ -77,6 +77,32 @@ export function buildChunks(
     ].join("\n"),
   });
 
+  // ── complete topic breakdown (all topics in one chunk for "each topic" queries) ──
+  const totalByLevel = { advanced: 0, intermediate: 0, fundamental: 0 };
+  for (const t of skillStats.advanced) totalByLevel.advanced += t.problemsSolved;
+  for (const t of skillStats.intermediate) totalByLevel.intermediate += t.problemsSolved;
+  for (const t of skillStats.fundamental) totalByLevel.fundamental += t.problemsSolved;
+  const totalAllTopics = totalByLevel.advanced + totalByLevel.intermediate + totalByLevel.fundamental;
+
+  chunks.push({
+    id: "topic-complete-analysis",
+    type: "summary",
+    text: [
+      `Complete topic-by-topic analysis for ${username}:`,
+      `Total topics with problems: ${allTags.length} out of ${skillStats.advanced.length + skillStats.intermediate.length + skillStats.fundamental.length}`,
+      `Total problems across all topics: ${totalAllTopics}`,
+      "",
+      `=== ADVANCED (${skillStats.advanced.length} topics, ${totalByLevel.advanced} total problems) ===`,
+      ...[...skillStats.advanced].sort((a, b) => b.problemsSolved - a.problemsSolved).map(t => `  ${t.tagName}: ${t.problemsSolved}`),
+      "",
+      `=== INTERMEDIATE (${skillStats.intermediate.length} topics, ${totalByLevel.intermediate} total problems) ===`,
+      ...[...skillStats.intermediate].sort((a, b) => b.problemsSolved - a.problemsSolved).map(t => `  ${t.tagName}: ${t.problemsSolved}`),
+      "",
+      `=== FUNDAMENTAL (${skillStats.fundamental.length} topics, ${totalByLevel.fundamental} total problems) ===`,
+      ...[...skillStats.fundamental].sort((a, b) => b.problemsSolved - a.problemsSolved).map(t => `  ${t.tagName}: ${t.problemsSolved}`),
+    ].join("\n"),
+  });
+
   // ── language-stats ──
   const sortedLangs = [...languageStats].sort((a, b) => b.problemsSolved - a.problemsSolved);
   chunks.push({

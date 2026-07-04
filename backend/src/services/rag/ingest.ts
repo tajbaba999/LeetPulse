@@ -15,19 +15,48 @@ export async function ingestRag(
   problems: RawProblem[],
   onProgress?: IngestProgressCallback,
 ): Promise<{ upserted: number; skipped: number }> {
+  // Step 1: Build all chunks from sync data
+  await onProgress?.("rag_building", 63, "Building RAG documents from profile data...");
   const allChunks = buildChunks(username, syncResult, problems);
+
+  // Step 2: Compare hashes to find changed chunks
+  await onProgress?.("rag_diffing", 64, `Comparing ${allChunks.length} chunks against cache...`);
   const changedChunks = await getChangedChunks(userId, allChunks);
 
   if (changedChunks.length === 0) {
+    await onProgress?.("rag_done", 100, `No changes detected — ${allChunks.length} chunks up to date`);
     return { upserted: 0, skipped: allChunks.length };
   }
 
-  await onProgress?.("embedding_started", 65, `Embedding ${changedChunks.length} changed chunks...`);
-  const withVectors = await embedChunks(changedChunks);
+  await onProgress?.("rag_diff_done", 65, `${changedChunks.length} of ${allChunks.length} chunks changed`);
 
-  await onProgress?.("pinecone_started", 80, `Upserting ${changedChunks.length} vectors to Pinecone...`);
-  await upsertChunks(userId, withVectors);
+  // Step 3: Embed changed chunks via OpenAI
+  await onProgress?.("embedding_started", 66, `Embedding ${changedChunks.length} chunks with Gemini...`);
+  let withVectors;
+  try {
+    withVectors = await embedChunks(changedChunks);
+  }
+  catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new Error(`OpenAI embedding failed: ${msg}`);
+  }
+  await onProgress?.("embedding_done", 80, `Embedded ${withVectors.length} chunks`);
+
+  // Step 4: Upsert vectors to Pinecone
+  await onProgress?.("pinecone_started", 81, `Upserting ${withVectors.length} vectors to Pinecone (namespace: ${userId.slice(0, 8)}...)...`);
+  try {
+    await upsertChunks(userId, withVectors);
+  }
+  catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new Error(`Pinecone upsert failed: ${msg}`);
+  }
+  await onProgress?.("pinecone_done", 95, `Upserted ${withVectors.length} vectors to Pinecone`);
+
+  // Step 5: Save chunk hashes for next diff
+  await onProgress?.("hash_saving", 96, "Saving chunk hashes for future diffs...");
   await saveChunkHashes(userId, changedChunks);
+  await onProgress?.("rag_done", 100, `RAG ingest complete: ${changedChunks.length} chunks indexed`);
 
   return { upserted: changedChunks.length, skipped: allChunks.length - changedChunks.length };
 }
