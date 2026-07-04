@@ -7,8 +7,8 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 FROM base AS builder
 WORKDIR /app
 
-# Copy package files from root context
-COPY package.json pnpm-lock.yaml* ./
+# Copy workspace config and package files
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY apps/frontend/package.json ./apps/frontend/
 COPY packages/typescript-config/package.json ./packages/typescript-config/
 COPY packages/eslint-config/package.json ./packages/eslint-config/
