@@ -12,6 +12,7 @@ COPY package.json pnpm-lock.yaml* ./
 COPY apps/backend/package.json ./apps/backend/
 COPY packages/db/package.json ./packages/db/
 COPY packages/typescript-config/package.json ./packages/typescript-config/
+COPY packages/eslint-config/package.json ./packages/eslint-config/
 
 # Install dependencies
 RUN pnpm install --frozen-lockfile
@@ -20,6 +21,7 @@ RUN pnpm install --frozen-lockfile
 COPY apps/backend ./apps/backend
 COPY packages/db ./packages/db
 COPY packages/typescript-config ./packages/typescript-config
+COPY packages/eslint-config ./packages/eslint-config
 
 # Build
 WORKDIR /app/apps/backend
