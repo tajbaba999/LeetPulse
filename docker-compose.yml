@@ -43,7 +43,7 @@ services:
       NEXT_PUBLIC_API_URL: http://localhost:3000
 
   loki:
-    image: grafana/loki:3.4.2
+    image: grafana/loki:latest
     ports:
       - "3100:3100"
     volumes:
@@ -71,7 +71,7 @@ services:
       - prometheus
 
   prometheus:
-    image: prom/prometheus:v3.4.2
+    image: prom/prometheus:latest
     ports:
       - "9090:9090"
     volumes:
