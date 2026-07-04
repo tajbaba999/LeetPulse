@@ -9,7 +9,6 @@ WORKDIR /app
 
 # Copy package files
 COPY package.json pnpm-lock.yaml* ./
-COPY ../packages/db/package.json ../packages/db/
 COPY ../packages/typescript-config/package.json ../packages/typescript-config/
 
 # Install dependencies
@@ -17,7 +16,6 @@ RUN pnpm install --frozen-lockfile
 
 # Copy source
 COPY . .
-COPY ../packages/db ../packages/db
 COPY ../packages/typescript-config ../packages/typescript-config
 
 # Build
@@ -30,10 +28,12 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 # Copy built files
-COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/next.config.ts ./
 
 EXPOSE 3000
 
-CMD ["node", "--env-file=.env", "dist/src/index.js"]
+CMD ["pnpm", "start"]
