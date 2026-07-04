@@ -1,6 +1,7 @@
+import { Prisma } from "@prisma/client";
 import Express from "express";
 
-import { Prisma } from "@prisma/client";
+import type { LeetCodeSyncResult } from "../../types/coding-profiles.js";
 
 import prisma from "../../db.js";
 import { env } from "../../env.js";
@@ -15,7 +16,6 @@ import {
   fetchLeetCodeUserQuestions,
 } from "../../fetchers/leetcodeFetcher.js";
 import { ingestRag } from "../../services/rag/ingest.js";
-import type { LeetCodeSyncResult } from "../../types/coding-profiles.js";
 
 const toJson = (val: unknown) => val as Prisma.InputJsonValue;
 
@@ -24,7 +24,8 @@ function writeSSE(res: Express.Response, event: string, data: Record<string, unk
 }
 
 function extractUsername(value: string | undefined): string | undefined {
-  if (!value) return undefined;
+  if (!value)
+    return undefined;
   try {
     const url = new URL(value);
     const parts = url.pathname.split("/").filter(Boolean);
@@ -37,7 +38,8 @@ function extractUsername(value: string | undefined): string | undefined {
 
 function resolveUsername(body: string | undefined): string | undefined {
   const fromBody = extractUsername(body);
-  if (fromBody) return fromBody;
+  if (fromBody)
+    return fromBody;
   return env.LEETCODE_USERNAME?.trim() || undefined;
 }
 
@@ -178,7 +180,8 @@ router.post("/initial-sync", async (req, res) => {
         });
 
         const page = await fetchLeetCodeUserQuestions(username, skip, PAGE_SIZE);
-        if (page.questions.length === 0) break;
+        if (page.questions.length === 0)
+          break;
 
         allProblems = [...allProblems, ...page.questions.map(q => ({
           titleSlug: q.titleSlug,
@@ -226,6 +229,7 @@ router.post("/initial-sync", async (req, res) => {
         contestTopPercentage: contest.info.topPercentage,
         attendedContestsCount: contest.info.attendedContestsCount,
         questionProgress: toJson(questionProgress),
+        sessionProgress: toJson(sessionProgress),
         skillStats: toJson(skillStats),
         languageStats: toJson(languageStats),
         recentSubmissions: toJson(profile.recentSubmissions),
@@ -250,6 +254,7 @@ router.post("/initial-sync", async (req, res) => {
         contestTopPercentage: contest.info.topPercentage,
         attendedContestsCount: contest.info.attendedContestsCount,
         questionProgress: toJson(questionProgress),
+        sessionProgress: toJson(sessionProgress),
         skillStats: toJson(skillStats),
         languageStats: toJson(languageStats),
         recentSubmissions: toJson(profile.recentSubmissions),
@@ -467,10 +472,12 @@ router.post("/sync", async (req, res) => {
       while (skip < liveProfile.totalSolved) {
         writeSSE(res, "progress", { stage: "fetch_questions", pct: 38 + Math.round((skip / liveProfile.totalSolved) * 7), msg: `8/9: Questions ${skip + 1}–${Math.min(skip + PAGE_SIZE, liveProfile.totalSolved)} of ${liveProfile.totalSolved}...` });
         const page = await fetchLeetCodeUserQuestions(username, skip, PAGE_SIZE);
-        if (page.questions.length === 0) break;
+        if (page.questions.length === 0)
+          break;
         allProblems = [...allProblems, ...page.questions.map(q => ({ titleSlug: q.titleSlug, title: q.title, difficulty: q.difficulty, questionStatus: q.questionStatus, lastResult: q.lastResult, lastSubmittedAt: q.lastSubmittedAt, numSubmitted: q.numSubmitted, topicTags: q.topicTags }))];
         skip += PAGE_SIZE;
-        if (skip < liveProfile.totalSolved) await new Promise(r => setTimeout(r, 300));
+        if (skip < liveProfile.totalSolved)
+          await new Promise(r => setTimeout(r, 300));
       }
       writeSSE(res, "progress", { stage: "fetch_questions_done", pct: 45, msg: `8/9: Fetched ${allProblems.length} questions` });
     }
@@ -483,8 +490,8 @@ router.post("/sync", async (req, res) => {
     writeSSE(res, "progress", { stage: "db_save", pct: 46, msg: "9/9: Saving to database..." });
     await prisma.leetCodeStats.upsert({
       where: { userId: user.userId },
-      create: { userId: user.userId, username, totalSolved: liveProfile.totalSolved, totalQuestions: liveProfile.totalQuestions, easySolved: liveProfile.easySolved, mediumSolved: liveProfile.mediumSolved, hardSolved: liveProfile.hardSolved, ranking: liveProfile.ranking, acceptanceRate: liveProfile.acceptanceRate, streak: calendar.streak, contestRating: contest.info.rating, contestGlobalRanking: contest.info.globalRanking, contestTopPercentage: contest.info.topPercentage, attendedContestsCount: contest.info.attendedContestsCount, questionProgress: toJson(questionProgress), skillStats: toJson(skillStats), languageStats: toJson(languageStats), recentSubmissions: toJson(liveProfile.recentSubmissions), calendarData: toJson({ activeYears: calendar.activeYears, totalActiveDays: calendar.totalActiveDays, submissionCalendar: calendar.submissionCalendar }) },
-      update: { username, totalSolved: liveProfile.totalSolved, totalQuestions: liveProfile.totalQuestions, easySolved: liveProfile.easySolved, mediumSolved: liveProfile.mediumSolved, hardSolved: liveProfile.hardSolved, ranking: liveProfile.ranking, acceptanceRate: liveProfile.acceptanceRate, streak: calendar.streak, contestRating: contest.info.rating, contestGlobalRanking: contest.info.globalRanking, contestTopPercentage: contest.info.topPercentage, attendedContestsCount: contest.info.attendedContestsCount, questionProgress: toJson(questionProgress), skillStats: toJson(skillStats), languageStats: toJson(languageStats), recentSubmissions: toJson(liveProfile.recentSubmissions), calendarData: toJson({ activeYears: calendar.activeYears, totalActiveDays: calendar.totalActiveDays, submissionCalendar: calendar.submissionCalendar }) },
+      create: { userId: user.userId, username, totalSolved: liveProfile.totalSolved, totalQuestions: liveProfile.totalQuestions, easySolved: liveProfile.easySolved, mediumSolved: liveProfile.mediumSolved, hardSolved: liveProfile.hardSolved, ranking: liveProfile.ranking, acceptanceRate: liveProfile.acceptanceRate, streak: calendar.streak, contestRating: contest.info.rating, contestGlobalRanking: contest.info.globalRanking, contestTopPercentage: contest.info.topPercentage, attendedContestsCount: contest.info.attendedContestsCount, questionProgress: toJson(questionProgress), sessionProgress: toJson(sessionProgress), skillStats: toJson(skillStats), languageStats: toJson(languageStats), recentSubmissions: toJson(liveProfile.recentSubmissions), calendarData: toJson({ activeYears: calendar.activeYears, totalActiveDays: calendar.totalActiveDays, submissionCalendar: calendar.submissionCalendar }) },
+      update: { username, totalSolved: liveProfile.totalSolved, totalQuestions: liveProfile.totalQuestions, easySolved: liveProfile.easySolved, mediumSolved: liveProfile.mediumSolved, hardSolved: liveProfile.hardSolved, ranking: liveProfile.ranking, acceptanceRate: liveProfile.acceptanceRate, streak: calendar.streak, contestRating: contest.info.rating, contestGlobalRanking: contest.info.globalRanking, contestTopPercentage: contest.info.topPercentage, attendedContestsCount: contest.info.attendedContestsCount, questionProgress: toJson(questionProgress), sessionProgress: toJson(sessionProgress), skillStats: toJson(skillStats), languageStats: toJson(languageStats), recentSubmissions: toJson(liveProfile.recentSubmissions), calendarData: toJson({ activeYears: calendar.activeYears, totalActiveDays: calendar.totalActiveDays, submissionCalendar: calendar.submissionCalendar }) },
     });
     writeSSE(res, "progress", { stage: "db_stats_done", pct: 52, msg: "Stats saved" });
 
@@ -581,12 +588,24 @@ router.get("/history", async (req, res) => {
       orderBy: { snapshotAt: "desc" },
       take: limit,
       select: {
-        id: true, snapshotAt: true, totalSolved: true, totalQuestions: true,
-        easySolved: true, mediumSolved: true, hardSolved: true, ranking: true,
-        acceptanceRate: true, streak: true, contestRating: true,
-        contestGlobalRanking: true, contestTopPercentage: true,
-        attendedContestsCount: true, problemsSolvedList: true,
-        contestHistory: true, skillStats: true, languageStats: true,
+        id: true,
+        snapshotAt: true,
+        totalSolved: true,
+        totalQuestions: true,
+        easySolved: true,
+        mediumSolved: true,
+        hardSolved: true,
+        ranking: true,
+        acceptanceRate: true,
+        streak: true,
+        contestRating: true,
+        contestGlobalRanking: true,
+        contestTopPercentage: true,
+        attendedContestsCount: true,
+        problemsSolvedList: true,
+        contestHistory: true,
+        skillStats: true,
+        languageStats: true,
       },
     });
 
@@ -693,8 +712,10 @@ router.get("/activity", async (req, res) => {
       const d = new Date(timestamp * 1000);
       const dateStr = d.toISOString().split("T")[0];
 
-      if (year && !dateStr.startsWith(String(year))) continue;
-      if (month && !dateStr.startsWith(`${year ?? new Date().getFullYear()}-${String(month).padStart(2, "0")}`)) continue;
+      if (year && !dateStr.startsWith(String(year)))
+        continue;
+      if (month && !dateStr.startsWith(`${year ?? new Date().getFullYear()}-${String(month).padStart(2, "0")}`))
+        continue;
 
       days.push({
         date: dateStr,
