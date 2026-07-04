@@ -45,6 +45,7 @@ model LeetCodeStats {
   contestTopPercentage  Float    @default(0)
   attendedContestsCount Int      @default(0)
   questionProgress      Json?
+  sessionProgress       Json?
   skillStats            Json?
   languageStats         Json?
   recentSubmissions     Json?
