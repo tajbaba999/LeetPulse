@@ -1,6 +1,6 @@
 import express from "express";
 
-import prisma from "../db.js";
+import prisma from "@leetplus/db";
 
 const router = express.Router();
 

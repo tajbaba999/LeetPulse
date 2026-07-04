@@ -2,6 +2,8 @@
   "extends": "@leetplus/tsconfig/node.json",
   "compilerOptions": {
     "outDir": "dist",
+    "declaration": false,
+    "declarationMap": false,
     "types": ["node"]
   },
   "include": [

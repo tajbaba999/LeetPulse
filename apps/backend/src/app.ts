@@ -13,7 +13,7 @@ import logger from "./utils/logger.js";
 const app = express();
 
 app.use(prometheusMiddleware);
-app.use(pinoHttp({ logger }));
+app.use((pinoHttp as unknown as typeof pinoHttp.default)({ logger }));
 app.use(helmet());
 app.use(cors());
 app.use(express.json());

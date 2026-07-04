@@ -23,9 +23,9 @@ COPY packages/db ./packages/db
 COPY packages/typescript-config ./packages/typescript-config
 COPY packages/eslint-config ./packages/eslint-config
 
-# Build
+# Generate Prisma client and build
 WORKDIR /app/apps/backend
-RUN pnpm run build
+RUN cd /app/packages/db && npx prisma generate && cd /app/apps/backend && pnpm run build
 
 # Production stage
 FROM base AS runner
