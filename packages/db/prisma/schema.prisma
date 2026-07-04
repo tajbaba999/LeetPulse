@@ -1,0 +1,122 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id             String          @id @default(uuid())
+  name           String
+  email          String          @unique
+  password       String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  codingProfiles CodingProfiles?
+  leetCodeStats  LeetCodeStats?
+}
+
+model CodingProfiles {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  leetcode  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model LeetCodeStats {
+  id                    String   @id @default(uuid())
+  userId                String   @unique
+  username              String
+  totalSolved           Int      @default(0)
+  totalQuestions        Int      @default(0)
+  easySolved            Int      @default(0)
+  mediumSolved          Int      @default(0)
+  hardSolved            Int      @default(0)
+  ranking               Int      @default(0)
+  acceptanceRate        Float    @default(0)
+  streak                Int      @default(0)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  contestRating         Float    @default(0)
+  contestGlobalRanking  Int      @default(0)
+  contestTopPercentage  Float    @default(0)
+  attendedContestsCount Int      @default(0)
+  questionProgress      Json?
+  sessionProgress       Json?
+  skillStats            Json?
+  languageStats         Json?
+  recentSubmissions     Json?
+  calendarData          Json?
+  user                  User     @relation(fields: [userId], references: [id])
+}
+
+model LeetCodeHistory {
+  id                    String   @id @default(uuid())
+  userId                String
+  username              String
+  snapshotAt            DateTime @default(now())
+  totalSolved           Int      @default(0)
+  totalQuestions        Int      @default(0)
+  easySolved            Int      @default(0)
+  mediumSolved          Int      @default(0)
+  hardSolved            Int      @default(0)
+  ranking               Int      @default(0)
+  acceptanceRate        Float    @default(0)
+  streak                Int      @default(0)
+  contestRating         Float    @default(0)
+  contestGlobalRanking  Int      @default(0)
+  contestTopPercentage  Float    @default(0)
+  attendedContestsCount Int      @default(0)
+  problemsSolvedList    Json?
+  contestHistory        Json?
+  skillStats            Json?
+  languageStats         Json?
+
+  @@index([userId])
+  @@index([userId, snapshotAt])
+}
+
+model LeetCodeContestHistory {
+  id                  String  @id @default(uuid())
+  userId              String
+  contestTitle        String
+  startTime           Int
+  attended            Boolean
+  rating              Float
+  ranking             Int
+  trendDirection      String  @default("")
+  problemsSolved      Int     @default(0)
+  totalProblems       Int     @default(0)
+  finishTimeInSeconds Int     @default(0)
+
+  @@unique([userId, contestTitle])
+  @@index([userId])
+}
+
+model LeetCodeProblem {
+  id              String @id @default(uuid())
+  userId          String
+  titleSlug       String
+  title           String
+  difficulty      String
+  questionStatus  String
+  lastResult      String
+  lastSubmittedAt String
+  numSubmitted    Int    @default(0)
+  topicTags       Json
+
+  @@unique([userId, titleSlug])
+  @@index([userId])
+}
+
+model RagChunkHash {
+  userId    String
+  chunkId   String
+  hash      String
+  updatedAt DateTime @updatedAt
+
+  @@id([userId, chunkId])
+}
