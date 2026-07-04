@@ -177,6 +177,22 @@ export function buildChunks(
 
   // ── calendar-activity ──
   const dccNames = calendar.dccBadges.map(b => b.badge.name).join(", ") || "none";
+
+  // Compute per-year active days from submissionCalendar
+  const yearActiveDays: Record<number, Set<string>> = {};
+  for (const [ts, count] of Object.entries(calendar.submissionCalendar)) {
+    if (count > 0) {
+      const d = new Date(Number(ts) * 1000);
+      const year = d.getFullYear();
+      const dayStr = d.toISOString().split("T")[0];
+      if (!yearActiveDays[year]) yearActiveDays[year] = new Set();
+      yearActiveDays[year].add(dayStr);
+    }
+  }
+  const perYearLines = Object.keys(yearActiveDays)
+    .sort()
+    .map(year => `  ${year}: ${yearActiveDays[Number(year)].size} active days`);
+
   chunks.push({
     id: "calendar-activity",
     type: "summary",
@@ -186,8 +202,27 @@ export function buildChunks(
       `Total active days (all time): ${calendar.totalActiveDays}`,
       `Active years: ${calendar.activeYears.join(", ")}`,
       `DCC badges earned: ${calendar.dccBadges.length} (${dccNames})`,
+      "",
+      "Active days per year:",
+      ...perYearLines,
     ].join("\n"),
   });
+
+  // ── recent-submissions ──
+  if (profile.recentSubmissions.length > 0) {
+    const recentLines = profile.recentSubmissions.map((s) => {
+      const date = s.timestamp ? new Date(Number(s.timestamp) * 1000).toISOString().split("T")[0] : "unknown";
+      return `- ${s.title} (${s.lang}) — ${s.statusDisplay} on ${date}`;
+    });
+    chunks.push({
+      id: "recent-submissions",
+      type: "summary",
+      text: [
+        `Recent submissions for ${username} (last ${profile.recentSubmissions.length}):`,
+        ...recentLines,
+      ].join("\n"),
+    });
+  }
 
   // ── one chunk per solved problem ──
   for (const p of problems) {
