@@ -20,13 +20,12 @@ export async function getChangedChunks(userId: string, chunks: Chunk[]): Promise
 
 export async function saveChunkHashes(userId: string, chunks: Chunk[]): Promise<void> {
   const now = new Date();
-  await prisma.$transaction(
-    chunks.map(chunk =>
-      prisma.ragChunkHash.upsert({
-        where: { userId_chunkId: { userId, chunkId: chunk.id } },
-        create: { userId, chunkId: chunk.id, hash: sha256(chunk.text), updatedAt: now },
-        update: { hash: sha256(chunk.text), updatedAt: now },
-      }),
-    ),
-  );
+  for (const chunk of chunks) {
+    const hash = sha256(chunk.text);
+    await prisma.ragChunkHash.upsert({
+      where: { userId_chunkId: { userId, chunkId: chunk.id } },
+      create: { userId, chunkId: chunk.id, hash, updatedAt: now },
+      update: { hash, updatedAt: now },
+    });
+  }
 }
