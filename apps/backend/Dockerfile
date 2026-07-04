@@ -24,8 +24,10 @@ COPY packages/typescript-config ./packages/typescript-config
 COPY packages/eslint-config ./packages/eslint-config
 
 # Generate Prisma client and build
+WORKDIR /app/packages/db
+RUN npx prisma generate
 WORKDIR /app/apps/backend
-RUN cd /app/packages/db && npx prisma generate && cd /app/apps/backend && pnpm run build
+RUN pnpm run build
 
 # Production stage
 FROM base AS runner
@@ -33,10 +35,19 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-# Copy built files
+# Copy workspace config
+COPY pnpm-workspace.yaml package.json ./
+
+# Copy built packages
+COPY --from=builder /app/packages/db ./packages/db
+COPY --from=builder /app/packages/typescript-config ./packages/typescript-config
+
+# Copy backend dist and node_modules
 COPY --from=builder /app/apps/backend/dist ./apps/backend/dist
 COPY --from=builder /app/apps/backend/node_modules ./apps/backend/node_modules
 COPY --from=builder /app/apps/backend/package.json ./apps/backend/
+
+# Copy root node_modules (workspace hoisting)
 COPY --from=builder /app/node_modules ./node_modules
 
 EXPOSE 3000

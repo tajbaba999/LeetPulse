@@ -31,12 +31,21 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
+# Copy workspace config
+COPY pnpm-workspace.yaml package.json ./
+
 # Copy built files
 COPY --from=builder /app/apps/frontend/.next ./apps/frontend/.next
 COPY --from=builder /app/apps/frontend/node_modules ./apps/frontend/node_modules
 COPY --from=builder /app/apps/frontend/package.json ./apps/frontend/
 COPY --from=builder /app/apps/frontend/public ./apps/frontend/public
 COPY --from=builder /app/apps/frontend/next.config.ts ./apps/frontend/
+COPY --from=builder /app/apps/frontend/tsconfig.json ./apps/frontend/
+
+# Copy root node_modules and workspace packages for pnpm resolution
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/packages/typescript-config ./packages/typescript-config
+COPY --from=builder /app/packages/eslint-config ./packages/eslint-config
 
 EXPOSE 3000
 
