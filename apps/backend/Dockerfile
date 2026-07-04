@@ -40,4 +40,4 @@ COPY --from=builder /app/node_modules ./node_modules
 EXPOSE 3000
 
 WORKDIR /app/apps/backend
-CMD ["node", "--env-file=.env", "dist/src/index.js"]
+CMD ["node", "dist/src/index.js"]
