@@ -1,14 +1,9 @@
 {
-  "name": "express-api-starter-ts",
+  "name": "@leetplus/backend",
   "version": "2.0.0",
-  "description": "A basic starter for an express.js v5 API with Typescript",
-  "author": "CJ R. <cj@null.computer> (https://w3cj.now.sh)",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/w3cj/express-api-starter-ts.git"
-  },
-  "keywords": [],
+  "description": "LeetPlus Express API with RAG pipeline",
+  "private": true,
+  "type": "module",
   "main": "src/index.ts",
   "scripts": {
     "start": "node --env-file=.env dist/src/index.js",
@@ -16,10 +11,11 @@
     "build": "tsc",
     "lint": "eslint --fix src test",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "check-types": "tsc --noEmit"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
+    "@leetplus/db": "workspace:*",
     "@pinecone-database/pinecone": "^8.0.0",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
@@ -45,7 +41,8 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
-    "@antfu/eslint-config": "^6.2.0",
+    "@leetplus/eslint-config": "workspace:*",
+    "@leetplus/tsconfig": "workspace:*",
     "@types/bcrypt": "^6.0.0",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",

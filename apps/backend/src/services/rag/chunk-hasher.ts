@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 import type { Chunk } from "./document-builder.js";
 
-import prisma from "../../db.js";
+import prisma from "@leetplus/db";
 
 function sha256(text: string): string {
   return createHash("sha256").update(text).digest("hex");

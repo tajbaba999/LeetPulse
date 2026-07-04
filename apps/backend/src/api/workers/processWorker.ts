@@ -3,7 +3,7 @@ import { Worker } from "bullmq";
 
 import type { ProcessJobData } from "../../queues/process.queue.js";
 
-import prisma from "../../db.js";
+import prisma from "@leetplus/db";
 import { attachWorkerMetrics } from "../../queues/metrics.js";
 import { processLeetcodeQueue } from "../../queues/process.queue.js";
 import { connection } from "../../queues/sync.queue.js";

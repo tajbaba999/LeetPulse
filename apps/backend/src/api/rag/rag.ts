@@ -6,7 +6,7 @@ import Express from "express";
 import type { ProcessJobData } from "../../queues/process.queue.js";
 import type { LeetCodeSyncResult } from "../../types/coding-profiles.js";
 
-import prisma from "../../db.js";
+import prisma from "@leetplus/db";
 import { chat } from "../../services/rag/chat.js";
 import { ingestRag } from "../../services/rag/ingest.js";
 

@@ -3,7 +3,7 @@ import Express from "express";
 
 import type { LeetCodeSyncResult } from "../../types/coding-profiles.js";
 
-import prisma from "../../db.js";
+import prisma from "@leetplus/db";
 import { env } from "../../env.js";
 import {
   fetchLeetCodeCalendar,

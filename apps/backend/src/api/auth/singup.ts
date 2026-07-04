@@ -4,7 +4,7 @@ import { z } from "zod/v4";
 
 import type { SingupResponse } from "../../interfaces/singup.js";
 
-import prisma from "../../db.js";
+import prisma from "@leetplus/db";
 import { generateAccessToken, generateRefreshToken } from "../../utils/tokens.js";
 import { signupSchema } from "../../validators/index.js";
 

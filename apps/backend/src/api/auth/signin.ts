@@ -4,7 +4,7 @@ import { z } from "zod/v4";
 
 import type { SigninResponse, SinginRequest } from "../../interfaces/signin.js";
 
-import prisma from "../../db.js";
+import prisma from "@leetplus/db";
 import { generateAccessToken, generateRefreshToken } from "../../utils/tokens.js";
 import { signinSchema } from "../../validators/signin.validator.js";
 

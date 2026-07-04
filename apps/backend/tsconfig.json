@@ -1,0 +1,13 @@
+{
+  "extends": "@leetplus/tsconfig/node.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "types": ["node"]
+  },
+  "include": [
+    "./*.js",
+    "./*.ts",
+    "src/**/*.ts",
+    "test/**/*.ts"
+  ]
+}
