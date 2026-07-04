@@ -1,0 +1,26 @@
+{
+  "name": "leetplus",
+  "private": true,
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "check-types": "turbo run check-types",
+    "db:generate": "pnpm --filter @leetplus/db db:generate",
+    "db:migrate": "pnpm --filter @leetplus/db db:migrate",
+    "db:push": "pnpm --filter @leetplus/db db:push",
+    "db:studio": "pnpm --filter @leetplus/db db:studio"
+  },
+  "devDependencies": {
+    "turbo": "^2.5.0",
+    "typescript": "^5.9.3"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/engines",
+      "bcrypt",
+      "prisma"
+    ]
+  }
+}
