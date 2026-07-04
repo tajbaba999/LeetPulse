@@ -16,7 +16,6 @@ services:
     build:
       context: .
       dockerfile: apps/backend/Dockerfile
-      target: dev
     restart: unless-stopped
     depends_on:
       redis:

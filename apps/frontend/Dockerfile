@@ -7,18 +7,20 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 FROM base AS builder
 WORKDIR /app
 
-# Copy package files
+# Copy package files from root context
 COPY package.json pnpm-lock.yaml* ./
-COPY ../packages/typescript-config/package.json ../packages/typescript-config/
+COPY apps/frontend/package.json ./apps/frontend/
+COPY packages/typescript-config/package.json ./packages/typescript-config/
 
 # Install dependencies
 RUN pnpm install --frozen-lockfile
 
 # Copy source
-COPY . .
-COPY ../packages/typescript-config ../packages/typescript-config
+COPY apps/frontend ./apps/frontend
+COPY packages/typescript-config ./packages/typescript-config
 
 # Build
+WORKDIR /app/apps/frontend
 RUN pnpm run build
 
 # Production stage
@@ -28,12 +30,13 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 # Copy built files
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/next.config.ts ./
+COPY --from=builder /app/apps/frontend/.next ./apps/frontend/.next
+COPY --from=builder /app/apps/frontend/node_modules ./apps/frontend/node_modules
+COPY --from=builder /app/apps/frontend/package.json ./apps/frontend/
+COPY --from=builder /app/apps/frontend/public ./apps/frontend/public
+COPY --from=builder /app/apps/frontend/next.config.ts ./apps/frontend/
 
 EXPOSE 3000
 
+WORKDIR /app/apps/frontend
 CMD ["pnpm", "start"]
