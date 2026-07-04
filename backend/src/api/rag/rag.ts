@@ -48,8 +48,9 @@ router.post("/ingest", async (req, res) => {
     res.status(200).json({ message: "RAG ingest complete", ...result });
   }
   catch (ex) {
-    req.log.error({ err: ex }, "RAG ingest failed");
-    res.status(500).json({ message: "RAG ingest failed" });
+    const msg = ex instanceof Error ? ex.message : String(ex);
+    req.log.error({ err: msg }, "RAG ingest failed");
+    res.status(500).json({ message: "RAG ingest failed", error: msg });
   }
 });
 
@@ -75,8 +76,9 @@ router.post("/chat", async (req, res) => {
     res.status(200).json(result);
   }
   catch (ex) {
-    req.log.error({ err: ex }, "RAG chat failed");
-    res.status(500).json({ message: "RAG chat failed" });
+    const msg = ex instanceof Error ? ex.message : String(ex);
+    req.log.error({ err: msg }, "RAG chat failed");
+    res.status(500).json({ message: "RAG chat failed", error: msg });
   }
 });
 
@@ -93,7 +95,16 @@ function reconstructSyncResult(
     userSessionBeatsPercentage: [],
     totalQuestionBeatsPercentage: 0,
   }) as LeetCodeSyncResult["questionProgress"];
-  const calendarData = (stats.calendarData ?? {}) as { activeYears?: number[]; totalActiveDays?: number };
+  const calendarData = (stats.calendarData ?? {}) as {
+    activeYears?: number[];
+    totalActiveDays?: number;
+    submissionCalendar?: Record<string, number>;
+  };
+  const sessionProgress = (stats.sessionProgress ?? {
+    allQuestionsCount: [],
+    acSubmissionNum: [],
+    totalSubmissionNum: [],
+  }) as LeetCodeSyncResult["sessionProgress"];
 
   return {
     profile: {
@@ -130,11 +141,7 @@ function reconstructSyncResult(
       })),
     },
     questionProgress,
-    sessionProgress: {
-      allQuestionsCount: [],
-      acSubmissionNum: [],
-      totalSubmissionNum: [],
-    },
+    sessionProgress,
     skillStats,
     languageStats,
     calendar: {
@@ -142,7 +149,7 @@ function reconstructSyncResult(
       streak: stats.streak,
       totalActiveDays: calendarData.totalActiveDays ?? 0,
       dccBadges: [],
-      submissionCalendar: {},
+      submissionCalendar: calendarData.submissionCalendar ?? {},
     },
   };
 }
