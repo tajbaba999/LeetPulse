@@ -35,7 +35,7 @@ async function ensureIndex(): Promise<void> {
   try {
     await pc.createIndex({
       name,
-      dimension: 1536,
+      dimension: 768,
       metric: "cosine",
       spec: {
         serverless: {

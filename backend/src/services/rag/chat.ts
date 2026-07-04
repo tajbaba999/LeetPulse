@@ -1,59 +1,145 @@
-import OpenAI from "openai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 import { embedChunks } from "./embeddings.js";
 import { queryChunks } from "./pinecone.js";
 
-let _openai: OpenAI | null = null;
-function getOpenAI(): OpenAI {
-  if (!_openai) {
+let _genAI: GoogleGenerativeAI | null = null;
+function getGenAI(): GoogleGenerativeAI {
+  if (!_genAI) {
     // eslint-disable-next-line node/no-process-env
-    _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    _genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY ?? "");
   }
-  return _openai;
+  return _genAI;
 }
+
+// ── OpenAI (commented out — switch back by uncommenting and commenting Gemini) ──
+// import OpenAI from "openai";
+// let _openai: OpenAI | null = null;
+// function getOpenAI(): OpenAI {
+//   if (!_openai) {
+//     _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+//   }
+//   return _openai;
+// }
 
 export type ChatResult = {
   answer: string;
   sources: string[];
 };
 
+export type ChatChunk = {
+  type: "sources" | "token" | "done";
+  content: string;
+  sources?: string[];
+};
+
+async function buildContext(
+  userId: string,
+  username: string,
+  question: string,
+): Promise<{ context: string; sources: string[] }> {
+  const [questionChunk] = await embedChunks([{ id: "query", text: question, type: "summary" }]);
+  const matches = await queryChunks(userId, questionChunk.vector, 8);
+  const context = matches.map(m => m.text).join("\n\n---\n\n");
+  const sources = matches.map(m => m.id);
+  return { context, sources };
+}
+
+function buildSystemPrompt(username: string, context: string): string {
+  return [
+    `You are a LeetCode performance coach for ${username}.`,
+    "Answer questions based ONLY on the profile data provided below.",
+    "Rules:",
+    "- Always reference specific numbers and exact counts from the data.",
+    "- Give complete, structured answers. Use bullet points, tables, or numbered lists.",
+    "- For 'each topic' or 'complete analysis' questions, list ALL topics with their counts — do not summarize or skip any.",
+    "- Provide actionable recommendations at the end.",
+    "- If the data is insufficient to answer, say so — never invent numbers.",
+    "- Do NOT truncate your answer. Give the full analysis even if it is long.",
+    "",
+    "Profile data:",
+    context,
+  ].join("\n");
+}
+
 export async function chat(
   userId: string,
   username: string,
   question: string,
 ): Promise<ChatResult> {
-  // 1. Embed the question
-  const [questionChunk] = await embedChunks([{ id: "query", text: question, type: "summary" }]);
+  const { context, sources } = await buildContext(userId, username, question);
 
-  // 2. Retrieve top-4 relevant chunks from this user's namespace
-  const matches = await queryChunks(userId, questionChunk.vector, 4);
-  const context = matches.map(m => m.text).join("\n\n---\n\n");
-  const sources = matches.map(m => m.id);
-
-  // 3. Generate answer with gpt-4o-mini
-  const completion = await getOpenAI().chat.completions.create({
-    model: "gpt-4o-mini",
-    messages: [
-      {
-        role: "system",
-        content: [
-          `You are a LeetCode performance coach for ${username}.`,
-          "Answer questions based ONLY on the profile data provided below.",
-          "Always reference specific numbers. Give actionable recommendations.",
-          "If the data is insufficient to answer, say so — never invent numbers.",
-          "",
-          "Profile data:",
-          context,
-        ].join("\n"),
-      },
-      { role: "user", content: question },
+  // ── Gemini chat (free tier: gemini-2.0-flash) ──
+  const model = getGenAI().getGenerativeModel({ model: "gemini-2.5-flash" });
+  const result = await model.generateContent({
+    contents: [
+      { role: "user", parts: [{ text: `${buildSystemPrompt(username, context)}\n\nUser question: ${question}` }] },
     ],
-    temperature: 0.3,
-    max_tokens: 512,
+    generationConfig: { temperature: 0.3, maxOutputTokens: 4096 },
   });
 
   return {
-    answer: completion.choices[0].message.content ?? "No answer generated.",
+    answer: result.response.text() ?? "No answer generated.",
     sources,
   };
+
+  // ── OpenAI chat (uncomment to switch back) ──
+  // const completion = await getOpenAI().chat.completions.create({
+  //   model: "gpt-4o-mini",
+  //   messages: [
+  //     { role: "system", content: buildSystemPrompt(username, context) },
+  //     { role: "user", content: question },
+  //   ],
+  //   temperature: 0.3,
+  //   max_tokens: 512,
+  // });
+  // return {
+  //   answer: completion.choices[0].message.content ?? "No answer generated.",
+  //   sources,
+  // };
+}
+
+export async function* chatStream(
+  userId: string,
+  username: string,
+  question: string,
+): AsyncGenerator<ChatChunk> {
+  const { context, sources } = await buildContext(userId, username, question);
+
+  yield { type: "sources", content: "", sources };
+
+  // ── Gemini streaming ──
+  const model = getGenAI().getGenerativeModel({ model: "gemini-2.5-flash" });
+  const stream = await model.generateContentStream({
+    contents: [
+      { role: "user", parts: [{ text: `${buildSystemPrompt(username, context)}\n\nUser question: ${question}` }] },
+    ],
+    generationConfig: { temperature: 0.3, maxOutputTokens: 4096 },
+  });
+
+  for await (const chunk of stream.stream) {
+    const token = chunk.text();
+    if (token) {
+      yield { type: "token", content: token };
+    }
+  }
+
+  yield { type: "done", content: "" };
+
+  // ── OpenAI streaming (uncomment to switch back) ──
+  // const stream = await getOpenAI().chat.completions.create({
+  //   model: "gpt-4o-mini",
+  //   messages: [
+  //     { role: "system", content: buildSystemPrompt(username, context) },
+  //     { role: "user", content: question },
+  //   ],
+  //   temperature: 0.3,
+  //   max_tokens: 512,
+  //   stream: true,
+  // });
+  // for await (const chunk of stream) {
+  //   const token = chunk.choices[0]?.delta?.content;
+  //   if (token) yield { type: "token", content: token };
+  // }
+  // yield { type: "done", content: "" };
 }

@@ -8,6 +8,7 @@ const envSchema = z.object({
   LEETCODE_USERNAME: z.string().optional(),
   LEETCODE_SESSION: z.string().optional(),
   LEETCODE_CSRF: z.string().optional(),
+  GEMINI_API_KEY: z.string().optional(),
 });
 
 try {
