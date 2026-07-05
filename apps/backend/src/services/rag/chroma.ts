@@ -12,13 +12,14 @@ function getClient(): ChromaClient {
 
   const apiKey = process.env.CHROMA_API_KEY;
   const tenant = process.env.CHROMA_TENANT;
+  const database = process.env.CHROMA_DATABASE;
 
   if (apiKey && tenant) {
     _client = new ChromaClient({
-      path: `https://${process.env.CHROMA_HOST ?? "api.trychroma.com"}`,
-      apiKey,
+      path: `https://${process.env.CHROMA_HOST ?? "api.trychroma.com"}:8000`,
+      auth: { provider: "token", credentials: apiKey, tokenHeaderType: "X_CHROMA_TOKEN" },
       tenant,
-      database: process.env.CHROMA_DATABASE ?? "default",
+      database,
     });
   }
   else {
