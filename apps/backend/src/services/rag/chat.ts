@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-import { embedChunks } from "./embeddings.js";
 import { queryChunks } from "./chroma.js";
+import { embedChunks } from "./embeddings.js";
 
 async function retry<T>(fn: () => Promise<T>, retries = 3): Promise<T> {
   try {

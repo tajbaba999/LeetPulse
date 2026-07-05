@@ -746,10 +746,6 @@ router.get("/activity", async (req, res) => {
 });
 
 // ── GET /codingprofile/questions ──
-// Returns solved problems with topic tags from DB.
-// Supports offset/limit pagination for lazy loading.
-// Falls back to problemsSolvedList JSON from latest history snapshot
-// when the LeetCodeProblem table is empty.
 router.get("/questions", async (req, res) => {
   try {
     const user = req.user;
@@ -838,9 +834,6 @@ router.get("/questions", async (req, res) => {
 });
 
 // ── GET /codingprofile/topic-matrix ──
-// Returns per-topic solved counts broken down by Easy / Medium / Hard.
-// Uses LeetCodeProblem when available; falls back to skillStats with
-// estimated difficulty breakdowns when the problem table is empty.
 
 type TopicConfig = { display: string; aliases: string[] };
 

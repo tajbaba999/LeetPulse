@@ -75,7 +75,7 @@ const fetchWorker = new Worker(
       }
     }
 
-    // Step 8: Fetch all solved questions (paginated)
+    // Step 8: Fetch all solved questions 
     let allProblems: RawProblem[] = [];
     await reportStep(job, 8, `${8}/${TOTAL_STEPS}: Fetching solved questions (page 1)...`);
     job.log(`[fetch] 8/${TOTAL_STEPS}: Fetching solved questions (paginated)`);
