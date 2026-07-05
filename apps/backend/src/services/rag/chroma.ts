@@ -16,7 +16,7 @@ function getClient(): ChromaClient {
 
   if (apiKey && tenant) {
     _client = new ChromaClient({
-      path: `https://${process.env.CHROMA_HOST ?? "api.trychroma.com"}:8000`,
+      path: `https://${process.env.CHROMA_HOST ?? "api.trychroma.com"}`,
       auth: { provider: "token", credentials: apiKey, tokenHeaderType: "X_CHROMA_TOKEN" },
       tenant,
       database,
