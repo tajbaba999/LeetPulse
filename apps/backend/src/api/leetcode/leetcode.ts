@@ -38,39 +38,27 @@ const router = Express.Router();
 
 // ── GET /api/v1/leetcode/progress ──
 // Needs LEETCODE_SESSION + LEETCODE_CSRF in .env
+// Supports ?skip=0&limit=50 for pagination
 
-router.get("/progress", async (_req, res) => {
+router.get("/progress", async (req, res) => {
   try {
     const authLc = getAuthClient();
     if (!authLc) {
       return res.status(500).json({ message: "LEETCODE_SESSION and LEETCODE_CSRF must be set in .env" });
     }
 
-    const allQuestions: Array<{
-      translatedTitle: string;
-      frontendId: string;
-      title: string;
-      titleSlug: string;
-      difficulty: string;
-      lastSubmittedAt: string;
-      numSubmitted: number;
-      questionStatus: string;
-      lastResult: string;
-      topicTags: Array<{ name: string; nameTranslated: string; slug: string }>;
-    }> = [];
+    const skip = Math.max(Number(req.query.skip) || 0, 0);
+    const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 100);
 
-    let skip = 0;
-    const limit = 50;
-    let hasMore = true;
+    const batch = await authLc.user_progress_questions({ skip, limit });
 
-    while (hasMore) {
-      const batch = await authLc.user_progress_questions({ skip, limit });
-      allQuestions.push(...batch.questions);
-      skip += limit;
-      hasMore = batch.questions.length === limit;
-    }
-
-    res.status(200).json({ totalNum: allQuestions.length, questions: allQuestions });
+    res.status(200).json({
+      totalNum: batch.totalNum,
+      skip,
+      limit,
+      hasMore: skip + batch.questions.length < batch.totalNum,
+      questions: batch.questions,
+    });
   }
   catch (ex) {
     console.error("userProgressQuestionList error:", ex);

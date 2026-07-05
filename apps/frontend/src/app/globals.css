@@ -1,26 +1,140 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ─────────────────────────────────────────────────────────────
+   LeetPulse design tokens (ported from LeetPulse.dc.html)
+   Dark is the default; [data-theme="light"] overrides on <html>.
+   ───────────────────────────────────────────────────────────── */
+:root,
+:root[data-theme="dark"] {
+  --bg: oklch(0 0 0);
+  --bg-elevated: oklch(0.18 0 0);
+  --surface: oklch(0.14 0 0);
+  --surface-2: oklch(0.23 0 0);
+  --border: oklch(0.26 0 0);
+  --text: oklch(1 0 0);
+  --text-dim: oklch(0.72 0 0);
+  --text-faint: oklch(0.56 0 0);
+  --accent: oklch(0.58 0.21 260.84);
+  --accent-strong: oklch(0.68 0.19 260.84);
+  --accent-soft: oklch(0.58 0.21 260.84 / 0.16);
+  --accent-2: oklch(0.81 0.17 75.35);
+  --easy: oklch(0.72 0.19 149);
+  --easy-soft: oklch(0.72 0.19 149 / 0.15);
+  --medium: oklch(0.81 0.17 75.35);
+  --medium-soft: oklch(0.81 0.17 75.35 / 0.15);
+  --hard: oklch(0.64 0.21 25);
+  --hard-soft: oklch(0.64 0.21 25 / 0.15);
+  --flame: oklch(0.81 0.17 75.35);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+:root[data-theme="light"] {
+  --bg: oklch(0.99 0 0);
+  --bg-elevated: oklch(1 0 0);
+  --surface: oklch(0.975 0 0);
+  --surface-2: oklch(0.93 0 0);
+  --border: oklch(0.89 0 0);
+  --text: oklch(0.17 0 0);
+  --text-dim: oklch(0.42 0 0);
+  --text-faint: oklch(0.55 0 0);
+  --accent: oklch(0.52 0.21 260.84);
+  --accent-strong: oklch(0.58 0.2 260.84);
+  --accent-soft: oklch(0.58 0.21 260.84 / 0.12);
+  --accent-2: oklch(0.7 0.15 75.35);
+  --easy: oklch(0.6 0.17 149);
+  --easy-soft: oklch(0.72 0.19 149 / 0.13);
+  --medium: oklch(0.68 0.15 75.35);
+  --medium-soft: oklch(0.81 0.17 75.35 / 0.15);
+  --hard: oklch(0.58 0.21 25);
+  --hard-soft: oklch(0.64 0.21 25 / 0.13);
+  --flame: oklch(0.7 0.16 75.35);
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  padding: 0;
+  margin: 0;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-geist-sans), "Geist", sans-serif;
+  transition:
+    background 0.25s ease,
+    color 0.25s ease;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 8px;
+}
+
+.font-mono {
+  font-family: var(--font-geist-mono), "Geist Mono", monospace;
+}
+
+@keyframes blobDrift1 {
+  0%,
+  100% {
+    transform: translate(-8%, -6%) scale(1);
+  }
+  50% {
+    transform: translate(10%, 8%) scale(1.15);
+  }
+}
+@keyframes blobDrift2 {
+  0%,
+  100% {
+    transform: translate(6%, 10%) scale(1.05);
+  }
+  50% {
+    transform: translate(-10%, -8%) scale(0.9);
+  }
+}
+@keyframes blobDrift3 {
+  0%,
+  100% {
+    transform: translate(0%, 0%) scale(1);
+  }
+  50% {
+    transform: translate(-6%, 10%) scale(1.1);
+  }
+}
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes pulseDot {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-fadeup {
+  animation: fadeUp 0.5s ease both;
 }
