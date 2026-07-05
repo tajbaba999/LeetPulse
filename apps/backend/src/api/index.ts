@@ -6,7 +6,7 @@ import { authenticateToken } from "../middlewares.js";
 import RefreshToken from "./auth/refresh-token.js";
 import Singin from "./auth/signin.js";
 import Signup from "./auth/singup.js";
-import CodingProfile from "./codingprofile/codingprofile.js";
+import CodingProfile from "./codingprofile/index.js";
 import LeetCode from "./leetcode/leetcode.js";
 import Metrics from "./metrics/metrics.js";
 import Profile from "./profile.js";
