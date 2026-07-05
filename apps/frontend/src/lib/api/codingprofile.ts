@@ -117,6 +117,11 @@ export function ingestRag(): Promise<unknown> {
   return apiFetch<unknown>("/rag/ingest", { method: "POST" });
 }
 
+// Topic × difficulty matrix (curated topics only).
+export function getTopicMatrix(): Promise<import("./types").TopicMatrix> {
+  return apiFetch<import("./types").TopicMatrix>("/codingprofile/topic-matrix");
+}
+
 // ── Streaming sync ──────────────────────────────────────────────
 // initial-sync / sync stream Server-Sent Events directly from a POST, so we
 // read the response body ourselves rather than using EventSource (which is

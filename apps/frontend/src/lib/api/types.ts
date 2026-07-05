@@ -188,3 +188,7 @@ export type SyncEvent =
   | { type: "progress"; data: SyncProgress }
   | { type: "completed"; data: SyncProgress }
   | { type: "error"; data: SyncProgress };
+
+// Topic × difficulty matrix (curated topics only).
+export type TopicMatrixEntry = { topic: string; easy: number; medium: number; hard: number };
+export type TopicMatrix = TopicMatrixEntry[];

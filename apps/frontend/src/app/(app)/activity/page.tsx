@@ -2,9 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { TopicHeatmap } from "@/components/dashboard/TopicHeatmap";
+import { WeaknessRadar } from "@/components/dashboard/WeaknessRadar";
 import { Card, ErrorState, LoadingBlock, PageHeader } from "@/components/ui";
-import { getActivity } from "@/lib/api/codingprofile";
-import type { ActivityResponse } from "@/lib/api/types";
+import { getActivity, getTopicMatrix } from "@/lib/api/codingprofile";
+import type { ActivityResponse, LeetCodeStats, TopicMatrix } from "@/lib/api/types";
+import { useAppData } from "@/lib/app-data-context";
 
 const WEEKS = 53;
 
@@ -61,7 +64,10 @@ function computeStats(byDate: Map<string, number>) {
 }
 
 export default function ActivityPage() {
+  const { codingProfile } = useAppData();
+  const leetcodeStats: LeetCodeStats | null = codingProfile?.stats.leetcode ?? null;
   const [data, setData] = useState<ActivityResponse | null>(null);
+  const [topicMatrix, setTopicMatrix] = useState<TopicMatrix>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -70,8 +76,13 @@ export default function ActivityPage() {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    getActivity()
-      .then((r) => { if (!cancelled) setData(r); })
+    Promise.all([
+      getActivity(),
+      getTopicMatrix(),
+    ])
+      .then(([act, matrix]) => {
+        if (!cancelled) { setData(act); setTopicMatrix(matrix); }
+      })
       .catch((err) => { if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load activity"); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
@@ -102,8 +113,8 @@ export default function ActivityPage() {
         <ErrorState message={error} onRetry={() => setReloadKey((k) => k + 1)} />
       ) : (
         <>
-          <Card style={{ marginBottom: 20 }}>
-            <div style={{ display: "flex", gap: 3, overflowX: "auto", paddingBottom: 6 }}>
+          <Card style={{ marginBottom: 20, display: "flex", flexDirection: "column", alignItems: "center" }}>
+            <div style={{ display: "flex", gap: 3, overflowX: "auto", paddingBottom: 6, justifyContent: "center" }}>
               {weeks.map((week, wi) => (
                 <div key={wi} style={{ display: "flex", flexDirection: "column", gap: 3 }}>
                   {week.map((day) => (
@@ -116,7 +127,7 @@ export default function ActivityPage() {
                 </div>
               ))}
             </div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, marginTop: 12, fontSize: 11, color: "var(--text-faint)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 12, fontSize: 11, color: "var(--text-faint)" }}>
               Less
               {["var(--surface-2)", "oklch(0.58 0.21 260.84 / 0.3)", "oklch(0.58 0.21 260.84 / 0.6)", "var(--accent)"].map((c) => (
                 <span key={c} style={{ width: 11, height: 11, borderRadius: 3, background: c, display: "inline-block" }} />
@@ -125,10 +136,22 @@ export default function ActivityPage() {
             </div>
           </Card>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 20 }}>
             <StatTile label="Current streak" value={`${data?.streak ?? 0}`} unit="days" />
             <StatTile label="Longest streak" value={`${stats.longest}`} unit="days" />
             <StatTile label="Most active day" value={stats.mostActive} />
+          </div>
+
+          {/* Weakness Radar + Topic Heatmap */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: 16 }}>
+            <Card>
+              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 16 }}>Weakness radar</div>
+              {leetcodeStats && <WeaknessRadar stats={leetcodeStats} />}
+            </Card>
+            <Card>
+              <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 16 }}>Topic × difficulty heatmap</div>
+              <TopicHeatmap data={topicMatrix} />
+            </Card>
           </div>
         </>
       )}
