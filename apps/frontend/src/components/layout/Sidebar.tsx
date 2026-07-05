@@ -24,7 +24,7 @@ type NavItem = {
 };
 
 const NAV: NavItem[] = [
-  { href: "/chat", label: "AI Chat", icon: <ChatIcon />, badge: "NEW" },
+  { href: "/chat", label: "AI Chat", icon: <ChatIcon />, badge: "AI" },
   { href: "/dashboard", label: "Dashboard", icon: <DashboardIcon /> },
   { href: "/questions", label: "Questions", icon: <QuestionsIcon /> },
   { href: "/activity", label: "Activity", icon: <ActivityIcon /> },
