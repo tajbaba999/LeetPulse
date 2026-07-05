@@ -6,6 +6,8 @@ import { chat } from "@/lib/api/codingprofile";
 
 type Message = { role: "user" | "assistant"; text: string; sources?: string[]; error?: boolean };
 
+const STORAGE_KEY = "leetpulse:chat:messages";
+
 const SUGGESTIONS = [
   "What's my weakest topic right now?",
   "How's my streak trending this month?",
@@ -13,12 +15,44 @@ const SUGGESTIONS = [
   "Summarize my contest performance.",
 ];
 
+function loadMessages(): Message[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as Message[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveMessages(msgs: Message[]) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(msgs));
+  } catch { /* quota exceeded — ignore */ }
+}
+
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const typingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const loadedRef = useRef(false);
+
+  // Restore messages from localStorage on mount
+  useEffect(() => {
+    if (!loadedRef.current) {
+      loadedRef.current = true;
+      const saved = loadMessages();
+      if (saved.length > 0) setMessages(saved);
+    }
+  }, []);
+
+  // Persist messages to localStorage on change
+  useEffect(() => {
+    if (loadedRef.current && messages.length > 0) {
+      saveMessages(messages);
+    }
+  }, [messages]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });

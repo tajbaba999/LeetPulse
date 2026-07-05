@@ -80,12 +80,14 @@ export function TrendChart({ values }: { values: number[] }) {
 
   const min = Math.min(...values);
   const max = Math.max(...values);
-  const range = max - min || 1;
+  const range = max - min;
   const n = values.length;
 
   const points = values.map((v, i) => {
     const x = n === 1 ? w / 2 : pad + (i / (n - 1)) * (w - pad * 2);
-    const y = h - pad - ((v - min) / range) * (h - pad * 2);
+    const y = range === 0
+      ? h / 2
+      : h - pad - ((v - min) / range) * (h - pad * 2);
     return { x, y };
   });
 

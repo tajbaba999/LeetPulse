@@ -747,6 +747,8 @@ router.get("/activity", async (req, res) => {
 
 // ── GET /codingprofile/questions ──
 // Returns all solved problems with topic tags from DB.
+// Falls back to problemsSolvedList JSON from latest history snapshot
+// when the LeetCodeProblem table is empty (e.g. sync skipped question fetch).
 router.get("/questions", async (req, res) => {
   try {
     const user = req.user;
@@ -758,10 +760,36 @@ router.get("/questions", async (req, res) => {
     const difficulty = req.query.difficulty as string | undefined;
     const tag = req.query.tag as string | undefined;
 
-    const problems = await prisma.leetCodeProblem.findMany({
+    let problems = await prisma.leetCodeProblem.findMany({
       where: { userId: user.userId },
       orderBy: { lastSubmittedAt: "desc" },
     });
+
+    // Fallback: if LeetCodeProblem table is empty, read from latest history snapshot
+    if (problems.length === 0) {
+      const latest = await prisma.leetCodeHistory.findFirst({
+        where: { userId: user.userId },
+        orderBy: { snapshotAt: "desc" },
+        select: { problemsSolvedList: true },
+      });
+      if (Array.isArray(latest?.problemsSolvedList)) {
+        const list = latest.problemsSolvedList as Array<{
+          title: string; titleSlug: string; difficulty: string;
+          lastResult?: string; questionStatus?: string;
+          lastSubmittedAt?: string; numSubmitted?: number;
+          topicTags?: Array<{ name: string; nameTranslated?: string; slug: string }>;
+        }>;
+        problems = list.map(p => ({
+          id: "", userId: user.userId,
+          titleSlug: p.titleSlug, title: p.title, difficulty: p.difficulty,
+          questionStatus: p.questionStatus ?? "",
+          lastResult: p.lastResult ?? "",
+          lastSubmittedAt: p.lastSubmittedAt ?? "",
+          numSubmitted: p.numSubmitted ?? 0,
+          topicTags: p.topicTags ?? [],
+        }));
+      }
+    }
 
     let filtered = problems;
 
