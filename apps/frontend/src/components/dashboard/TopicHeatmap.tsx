@@ -3,7 +3,7 @@
 import type { TopicMatrix } from "@/lib/api/types";
 
 const TOPICS_ORDER = [
-  "Array", "String", "Hash Table", "Dynamic Programming", "Tree",
+  "Array", "String", "Hash Table",   "DP", "Tree",
   "Graph", "Two Pointers", "Sliding Window", "Linked List", "Matrix",
   "Backtracking", "Stack", "Heap", "Union Find", "Binary Search",
   "Greedy", "Sorting", "Prefix Sum",

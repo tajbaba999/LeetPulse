@@ -848,7 +848,7 @@ const TOPIC_CONFIG: TopicConfig[] = [
   { display: "Array", aliases: ["array"] },
   { display: "String", aliases: ["string"] },
   { display: "Hash Table", aliases: ["hash table", "hash map"] },
-  { display: "Dynamic Programming", aliases: ["dynamic programming"] },
+  { display: "DP", aliases: ["dynamic programming"] },
   { display: "Tree", aliases: ["tree", "binary tree", "binary search tree", "n-ary tree"] },
   { display: "Graph", aliases: ["graph"] },
   { display: "Two Pointers", aliases: ["two pointers", "two pointer"] },

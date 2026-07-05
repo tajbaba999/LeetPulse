@@ -6,8 +6,7 @@ import { TopicHeatmap } from "@/components/dashboard/TopicHeatmap";
 import { WeaknessRadar } from "@/components/dashboard/WeaknessRadar";
 import { Card, ErrorState, LoadingBlock, PageHeader } from "@/components/ui";
 import { getActivity, getTopicMatrix } from "@/lib/api/codingprofile";
-import type { ActivityResponse, LeetCodeStats, TopicMatrix } from "@/lib/api/types";
-import { useAppData } from "@/lib/app-data-context";
+import type { ActivityResponse, TopicMatrix } from "@/lib/api/types";
 
 const WEEKS = 53;
 
@@ -64,8 +63,6 @@ function computeStats(byDate: Map<string, number>) {
 }
 
 export default function ActivityPage() {
-  const { codingProfile } = useAppData();
-  const leetcodeStats: LeetCodeStats | null = codingProfile?.stats.leetcode ?? null;
   const [data, setData] = useState<ActivityResponse | null>(null);
   const [topicMatrix, setTopicMatrix] = useState<TopicMatrix>([]);
   const [loading, setLoading] = useState(true);
@@ -146,7 +143,7 @@ export default function ActivityPage() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: 16 }}>
             <Card>
               <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 16 }}>Weakness radar</div>
-              {leetcodeStats && <WeaknessRadar stats={leetcodeStats} />}
+              {topicMatrix.length > 0 ? <WeaknessRadar data={topicMatrix} /> : <div style={{ height: 300, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-faint)", fontSize: 13 }}>No topic data.</div>}
             </Card>
             <Card>
               <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 16 }}>Topic × difficulty heatmap</div>
