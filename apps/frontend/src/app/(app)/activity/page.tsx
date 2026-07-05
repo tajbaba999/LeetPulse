@@ -66,22 +66,26 @@ export default function ActivityPage() {
   const [data, setData] = useState<ActivityResponse | null>(null);
   const [topicMatrix, setTopicMatrix] = useState<TopicMatrix>([]);
   const [loading, setLoading] = useState(true);
+  const [topicLoading, setTopicLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+    setTopicLoading(true);
     setError(null);
-    Promise.all([
-      getActivity(),
-      getTopicMatrix(),
-    ])
-      .then(([act, matrix]) => {
-        if (!cancelled) { setData(act); setTopicMatrix(matrix); }
-      })
+
+    getActivity()
+      .then((act) => { if (!cancelled) setData(act); })
       .catch((err) => { if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load activity"); })
       .finally(() => { if (!cancelled) setLoading(false); });
+
+    getTopicMatrix()
+      .then((matrix) => { if (!cancelled) setTopicMatrix(matrix); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setTopicLoading(false); });
+
     return () => { cancelled = true; };
   }, [reloadKey]);
 
@@ -143,11 +147,21 @@ export default function ActivityPage() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1.5fr", gap: 16 }}>
             <Card>
               <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 16 }}>Weakness radar</div>
-              {topicMatrix.length > 0 ? <WeaknessRadar data={topicMatrix} /> : <div style={{ height: 300, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-faint)", fontSize: 13 }}>No topic data.</div>}
+              {topicLoading ? (
+                <SkeletonChart />
+              ) : topicMatrix.length > 0 ? (
+                <WeaknessRadar data={topicMatrix} />
+              ) : (
+                <div style={{ height: 300, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-faint)", fontSize: 13 }}>No topic data.</div>
+              )}
             </Card>
             <Card>
               <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 16 }}>Topic × difficulty heatmap</div>
-              <TopicHeatmap data={topicMatrix} />
+              {topicLoading ? (
+                <SkeletonHeatmap />
+              ) : (
+                <TopicHeatmap data={topicMatrix} />
+              )}
             </Card>
           </div>
         </>
@@ -164,5 +178,31 @@ function StatTile({ label, value, unit }: { label: string; value: string; unit?:
         {value} {unit && <span style={{ fontSize: 16 }}>{unit}</span>}
       </div>
     </Card>
+  );
+}
+
+const pulse = { animation: "pulseDot 1.2s ease infinite" };
+
+function SkeletonChart() {
+  return (
+    <div style={{ height: 340, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ width: 260, height: 260, borderRadius: "50%", border: "2px solid var(--surface-2)", ...pulse }} />
+    </div>
+  );
+}
+
+function SkeletonHeatmap() {
+  const rows = 10;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} style={{ display: "grid", gridTemplateColumns: "auto repeat(3, 1fr)", gap: 8, alignItems: "center" }}>
+          <div style={{ width: 90, height: 14, borderRadius: 4, background: "var(--surface-2)", ...pulse }} />
+          {[0, 1, 2].map((j) => (
+            <div key={j} style={{ height: 40, borderRadius: 6, background: "var(--surface-2)", ...pulse }} />
+          ))}
+        </div>
+      ))}
+    </div>
   );
 }
