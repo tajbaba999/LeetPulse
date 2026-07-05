@@ -112,6 +112,14 @@ export default function ChatPage() {
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
         <div style={{ fontWeight: 700, fontSize: 26, letterSpacing: "-0.02em" }}>Ask LeetPulse</div>
         <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: "0.05em", padding: "3px 8px", borderRadius: 6, background: "linear-gradient(135deg, var(--accent-strong), var(--accent))", color: "white" }}>AI</span>
+        {hasMessages && (
+          <div
+            onClick={() => { setMessages([]); localStorage.removeItem(STORAGE_KEY); }}
+            style={{ marginLeft: "auto", fontSize: 12, color: "var(--text-faint)", cursor: "pointer", padding: "6px 12px", border: "1px solid var(--border)", borderRadius: 8, background: "var(--bg-elevated)" }}
+          >
+            Clear history
+          </div>
+        )}
       </div>
       <div style={{ fontSize: 14, color: "var(--text-dim)", marginBottom: 20 }}>
         Grounded in your synced profile, snapshots, and skill breakdown — not generic advice.
