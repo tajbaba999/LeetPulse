@@ -122,6 +122,160 @@ export default function ChatPage() {
   );
 }
 
+function renderInline(text: string): React.ReactNode[] {
+  const nodes: React.ReactNode[] = [];
+  let remaining = text;
+  let key = 0;
+
+  const pattern = /(\*\*(.+?)\*\*)|(\\\*(.+?)\\\*)|(\*(.+?)\*)|(`(.+?)`)/g;
+  let lastIdx = 0;
+  let match;
+
+  while ((match = pattern.exec(remaining)) !== null) {
+    if (match.index > lastIdx) {
+      nodes.push(remaining.slice(lastIdx, match.index));
+    }
+    if (match[1]) {
+      nodes.push(<strong key={key++} style={{ fontWeight: 700 }}>{match[2]}</strong>);
+    } else if (match[3]) {
+      nodes.push(match[4]);
+    } else if (match[5]) {
+      nodes.push(<em key={key++} style={{ fontStyle: "italic" }}>{match[6]}</em>);
+    } else if (match[7]) {
+      nodes.push(
+        <code
+          key={key++}
+          style={{
+            padding: "1px 5px",
+            borderRadius: 4,
+            fontSize: 13,
+            fontFamily: "ui-monospace, SFMono-Regular, monospace",
+            background: "var(--bg-elevated, rgba(0,0,0,0.06))",
+          }}
+        >
+          {match[8]}
+        </code>,
+      );
+    }
+    lastIdx = match.index + match[0].length;
+  }
+  if (lastIdx < remaining.length) {
+    nodes.push(remaining.slice(lastIdx));
+  }
+  return nodes;
+}
+
+function MarkdownContent({ text }: { text: string }) {
+  const lines = text.split("\n");
+  const blocks: React.ReactNode[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    const headingMatch = line.match(/^(#{1,3})\s+(.*)/);
+    if (headingMatch) {
+      const level = headingMatch[1].length;
+      const sizes: Record<number, { size: number; weight: number }> = {
+        1: { size: 18, weight: 800 },
+        2: { size: 16, weight: 700 },
+        3: { size: 15, weight: 700 },
+      };
+      const s = sizes[level] || sizes[3];
+      blocks.push(
+        <div key={i} style={{ fontSize: s.size, fontWeight: s.weight, marginTop: i > 0 ? 10 : 0, marginBottom: 4, letterSpacing: "-0.01em" }}>
+          {renderInline(headingMatch[2])}
+        </div>,
+      );
+      i++;
+      continue;
+    }
+
+    const codeMatch = line.match(/^```/);
+    if (codeMatch) {
+      const codeLines: string[] = [];
+      i++;
+      while (i < lines.length && !lines[i].startsWith("```")) {
+        codeLines.push(lines[i]);
+        i++;
+      }
+      i++;
+      blocks.push(
+        <pre
+          key={i}
+          style={{
+            padding: "12px 14px",
+            borderRadius: 8,
+            fontSize: 12.5,
+            fontFamily: "ui-monospace, SFMono-Regular, monospace",
+            background: "var(--bg-elevated, rgba(0,0,0,0.04))",
+            overflow: "auto",
+            margin: "6px 0",
+            lineHeight: 1.5,
+          }}
+        >
+          {codeLines.join("\n")}
+        </pre>,
+      );
+      continue;
+    }
+
+    if (/^[\-\*]\s+/.test(line)) {
+      const items: string[] = [];
+      while (i < lines.length && /^[\-\*]\s+/.test(lines[i])) {
+        items.push(lines[i].replace(/^[\-\*]\s+/, ""));
+        i++;
+      }
+      blocks.push(
+        <div key={`list-${i}`} style={{ paddingLeft: 16, display: "flex", flexDirection: "column", gap: 2, margin: "4px 0" }}>
+          {items.map((item, j) => (
+            <div key={j} style={{ display: "flex", gap: 8, lineHeight: 1.6 }}>
+              <span style={{ color: "var(--accent)", flexShrink: 0, marginTop: 1 }}>•</span>
+              <span>{renderInline(item)}</span>
+            </div>
+          ))}
+        </div>,
+      );
+      continue;
+    }
+
+    if (/^\d+\.\s+/.test(line)) {
+      const items: { num: string; text: string }[] = [];
+      while (i < lines.length && /^\d+\.\s+/.test(lines[i])) {
+        const m = lines[i].match(/^(\d+)\.\s+(.*)/);
+        if (m) items.push({ num: m[1], text: m[2] });
+        i++;
+      }
+      blocks.push(
+        <div key={`ol-${i}`} style={{ paddingLeft: 16, display: "flex", flexDirection: "column", gap: 2, margin: "4px 0" }}>
+          {items.map((item, j) => (
+            <div key={j} style={{ display: "flex", gap: 8, lineHeight: 1.6 }}>
+              <span style={{ color: "var(--accent)", fontWeight: 600, flexShrink: 0 }}>{item.num}.</span>
+              <span>{renderInline(item.text)}</span>
+            </div>
+          ))}
+        </div>,
+      );
+      continue;
+    }
+
+    if (line.trim() === "") {
+      blocks.push(<div key={i} style={{ height: 6 }} />);
+      i++;
+      continue;
+    }
+
+    blocks.push(
+      <div key={i} style={{ lineHeight: 1.6 }}>
+        {renderInline(line)}
+      </div>,
+    );
+    i++;
+  }
+
+  return <>{blocks}</>;
+}
+
 function MessageRow({ msg }: { msg: Message }) {
   const isUser = msg.role === "user";
   return (
@@ -132,7 +286,6 @@ function MessageRow({ msg }: { msg: Message }) {
             padding: "12px 16px",
             fontSize: 14,
             lineHeight: 1.6,
-            whiteSpace: "pre-wrap",
             wordBreak: "break-word",
             background: isUser ? "var(--accent)" : msg.error ? "var(--hard-soft)" : "var(--surface)",
             color: isUser ? "white" : msg.error ? "var(--hard)" : "var(--text)",
@@ -140,7 +293,7 @@ function MessageRow({ msg }: { msg: Message }) {
             borderRadius: isUser ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
           }}
         >
-          {msg.text}
+          {isUser ? msg.text : <MarkdownContent text={msg.text} />}
         </div>
         {msg.sources && msg.sources.length > 0 && (
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", paddingLeft: 4 }}>
