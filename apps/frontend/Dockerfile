@@ -7,6 +7,9 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 FROM base AS builder
 WORKDIR /app
 
+ARG BACKEND_URL=http://localhost:3000
+ENV BACKEND_URL=$BACKEND_URL
+
 # Copy workspace config and package files
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY apps/frontend/package.json ./apps/frontend/

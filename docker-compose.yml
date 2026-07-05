@@ -50,13 +50,16 @@ services:
     build:
       context: .
       dockerfile: apps/frontend/Dockerfile
+      args:
+        BACKEND_URL: http://backend:3000
     restart: unless-stopped
     depends_on:
       - backend
     ports:
       - "3001:3000"
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:3000
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+      BACKEND_URL: http://backend:3000
 
   loki:
     image: grafana/loki:latest
