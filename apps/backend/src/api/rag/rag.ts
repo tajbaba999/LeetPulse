@@ -7,7 +7,7 @@ import type { ProcessJobData } from "../../queues/process.queue.js";
 import type { LeetCodeSyncResult } from "../../types/coding-profiles.js";
 
 import prisma from "@leetplus/db";
-import { chat } from "../../services/rag/chat.js";
+import { chat, chatStream } from "../../services/rag/chat.js";
 import { ingestRag } from "../../services/rag/ingest.js";
 
 const router = Express.Router();
@@ -79,6 +79,44 @@ router.post("/chat", async (req, res) => {
     const msg = ex instanceof Error ? ex.message : String(ex);
     req.log.error({ err: msg }, "RAG chat failed");
     res.status(500).json({ message: "RAG chat failed", error: msg });
+  }
+});
+
+// POST /api/v1/rag/chat/stream
+// Body: { question: string } — returns SSE stream
+router.post("/chat/stream", async (req, res) => {
+  const user = req.user;
+  if (!user)
+    return res.status(401).json({ message: "Unauthorized" });
+
+  const { question } = req.body as { question?: string };
+  if (!question?.trim()) {
+    return res.status(400).json({ message: "question is required" });
+  }
+
+  try {
+    const codingProfile = await prisma.codingProfiles.findUnique({ where: { userId: user.userId } });
+    if (!codingProfile?.leetcode) {
+      return res.status(404).json({ message: "LeetCode profile not linked" });
+    }
+
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
+    res.flushHeaders();
+
+    const stream = chatStream(user.userId, codingProfile.leetcode, question);
+    for await (const chunk of stream) {
+      res.write(`data: ${JSON.stringify(chunk)}\n\n`);
+    }
+    res.end();
+  }
+  catch (ex) {
+    const msg = ex instanceof Error ? ex.message : String(ex);
+    req.log.error({ err: msg }, "RAG chat stream failed");
+    res.write(`data: ${JSON.stringify({ type: "error", content: msg })}\n\n`);
+    res.end();
   }
 });
 
