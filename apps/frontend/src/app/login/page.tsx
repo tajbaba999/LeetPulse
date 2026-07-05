@@ -172,13 +172,6 @@ export default function LoginPage() {
                 <div style={labelStyle}>Password</div>
                 <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" style={inputStyle} required />
               </div>
-              {isSignup && (
-                <div>
-                  <div style={labelStyle}>LeetCode username</div>
-                  <input value={leetcode} onChange={(e) => setLeetcode(e.target.value)} placeholder="ada_codes" style={inputStyle} />
-                </div>
-              )}
-
               {error && (
                 <div style={{ fontSize: 13, color: "var(--hard)", background: "var(--hard-soft)", padding: "10px 12px", borderRadius: 10 }}>
                   {error}

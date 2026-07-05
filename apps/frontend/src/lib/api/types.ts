@@ -118,8 +118,18 @@ export type Question = {
 export type QuestionsResponse = {
   total: number;
   limit: number;
+  offset: number;
+  hasMore: boolean;
   difficulty: string;
   tag: string;
+  questions: Question[];
+};
+
+export type LeetCodeProgressResponse = {
+  totalNum: number;
+  skip: number;
+  limit: number;
+  hasMore: boolean;
   questions: Question[];
 };
 

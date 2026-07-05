@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { ErrorState, LoadingBlock, PageHeader, diffColor } from "@/components/ui";
-import { getQuestions } from "@/lib/api/codingprofile";
+import { getLeetCodeProgress } from "@/lib/api/codingprofile";
 import type { Question } from "@/lib/api/types";
 
 const DIFFICULTIES = ["all", "Easy", "Medium", "Hard"];
 const GRID = "44px 1fr 92px 96px 80px 1.2fr 110px";
+const PAGE_SIZE = 50;
 
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
@@ -23,23 +24,31 @@ export default function QuestionsPage() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedTag(tag), 300);
     return () => clearTimeout(t);
   }, [tag]);
 
+  // Initial load
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    getQuestions({ difficulty, tag: debouncedTag || undefined, limit: 500 })
+    setQuestions([]);
+    setHasMore(true);
+    getLeetCodeProgress({ skip: 0, limit: PAGE_SIZE })
       .then((r) => {
         if (cancelled) return;
         setQuestions(r.questions);
-        setTotal(r.total);
+        setTotal(r.totalNum);
+        setHasMore(r.hasMore);
       })
       .catch((err) => {
         if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load questions");
@@ -48,7 +57,51 @@ export default function QuestionsPage() {
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
-  }, [difficulty, debouncedTag, reloadKey]);
+  }, [reloadKey]);
+
+  const loadMore = useCallback(() => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    getLeetCodeProgress({ skip: questions.length, limit: PAGE_SIZE })
+      .then((r) => {
+        setQuestions((prev) => [...prev, ...r.questions]);
+        setTotal(r.totalNum);
+        setHasMore(r.hasMore);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingMore(false));
+  }, [loadingMore, hasMore, questions.length]);
+
+  // IntersectionObserver for infinite scroll
+  useEffect(() => {
+    if (observerRef.current) observerRef.current.disconnect();
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) loadMore();
+      },
+      { threshold: 0.1 },
+    );
+    if (sentinelRef.current) observerRef.current.observe(sentinelRef.current);
+    return () => { observerRef.current?.disconnect(); };
+  }, [loadMore]);
+
+  // Client-side filter for difficulty/tag (since leetcode/progress returns all)
+  const filtered = useMemo(() => {
+    let result = questions;
+    if (difficulty !== "all") {
+      const d = difficulty.charAt(0).toUpperCase() + difficulty.slice(1).toLowerCase();
+      result = result.filter((q) => q.difficulty === d);
+    }
+    if (debouncedTag) {
+      const t = debouncedTag.toLowerCase();
+      result = result.filter((q) =>
+        (q.topicTags ?? []).some((tag) =>
+          tag.name.toLowerCase().includes(t) || tag.slug.toLowerCase().includes(t),
+        ),
+      );
+    }
+    return result;
+  }, [questions, difficulty, debouncedTag]);
 
   const chip = (active: boolean): React.CSSProperties => ({
     padding: "9px 16px",
@@ -61,7 +114,10 @@ export default function QuestionsPage() {
     border: `1px solid ${active ? "var(--accent)" : "var(--border)"}`,
   });
 
-  const subtitle = useMemo(() => `${questions.length} of ${total} solved problems`, [questions.length, total]);
+  const subtitle = useMemo(() => {
+    if (total === 0 && !loading) return "No solved problems found";
+    return `Showing ${filtered.length} of ${total} solved problems`;
+  }, [filtered.length, total, loading]);
 
   return (
     <div style={{ padding: "36px 44px" }} className="animate-fadeup">
@@ -92,40 +148,53 @@ export default function QuestionsPage() {
               <LoadingBlock label="Loading questions…" />
             ) : error ? (
               <ErrorState message={error} onRetry={() => setReloadKey((k) => k + 1)} />
-            ) : questions.length === 0 ? (
+            ) : filtered.length === 0 ? (
               <div style={{ padding: "48px 20px", textAlign: "center", color: "var(--text-faint)", fontSize: 14 }}>No problems match these filters.</div>
             ) : (
-              questions.map((q, i) => {
-                const dc = diffColor(q.difficulty);
-                const accepted = (q.questionStatus ?? q.lastResult ?? "").toUpperCase().includes("AC") || q.questionStatus === "SOLVED";
-                return (
-                  <a
-                    key={q.titleSlug}
-                    href={`https://leetcode.com/problems/${q.titleSlug}/`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ display: "grid", gridTemplateColumns: GRID, padding: "14px 20px", alignItems: "center", borderBottom: "1px solid var(--border)", fontSize: 13, textDecoration: "none", color: "inherit" }}
-                  >
-                    <div className="font-mono" style={{ color: "var(--text-faint)" }}>{i + 1}</div>
-                    <div style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 10 }}>{q.title}</div>
-                    <div>
-                      <span style={{ padding: "3px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, color: dc.fg, background: dc.soft }}>{q.difficulty}</span>
-                    </div>
-                    <div>
-                      <span style={{ padding: "3px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, color: accepted ? "var(--easy)" : "var(--text-dim)", background: accepted ? "var(--easy-soft)" : "var(--surface-2)" }}>
-                        {accepted ? "Solved" : "Attempted"}
-                      </span>
-                    </div>
-                    <div className="font-mono" style={{ color: "var(--text-faint)" }}>{q.numSubmitted}</div>
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                      {(q.topicTags ?? []).slice(0, 2).map((t) => (
-                        <span key={t.slug} style={{ padding: "3px 9px", background: "var(--surface-2)", borderRadius: 6, fontSize: 11, color: "var(--text-dim)" }}>{t.name}</span>
-                      ))}
-                    </div>
-                    <div className="font-mono" style={{ color: "var(--text-faint)", fontSize: 12 }}>{formatDate(q.lastSubmittedAt)}</div>
-                  </a>
-                );
-              })
+              <>
+                {filtered.map((q, i) => {
+                  const dc = diffColor(q.difficulty);
+                  const accepted = (q.questionStatus ?? q.lastResult ?? "").toUpperCase().includes("AC") || q.questionStatus === "SOLVED";
+                  return (
+                    <a
+                      key={`${q.titleSlug}-${i}`}
+                      href={`https://leetcode.com/problems/${q.titleSlug}/`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ display: "grid", gridTemplateColumns: GRID, padding: "14px 20px", alignItems: "center", borderBottom: "1px solid var(--border)", fontSize: 13, textDecoration: "none", color: "inherit" }}
+                    >
+                      <div className="font-mono" style={{ color: "var(--text-faint)" }}>{i + 1}</div>
+                      <div style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", paddingRight: 10 }}>{q.title}</div>
+                      <div>
+                        <span style={{ padding: "3px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, color: dc.fg, background: dc.soft }}>{q.difficulty}</span>
+                      </div>
+                      <div>
+                        <span style={{ padding: "3px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, color: accepted ? "var(--easy)" : "var(--text-dim)", background: accepted ? "var(--easy-soft)" : "var(--surface-2)" }}>
+                          {accepted ? "Solved" : "Attempted"}
+                        </span>
+                      </div>
+                      <div className="font-mono" style={{ color: "var(--text-faint)" }}>{q.numSubmitted}</div>
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                        {(q.topicTags ?? []).slice(0, 2).map((t) => (
+                          <span key={t.slug} style={{ padding: "3px 9px", background: "var(--surface-2)", borderRadius: 6, fontSize: 11, color: "var(--text-dim)" }}>{t.name}</span>
+                        ))}
+                      </div>
+                      <div className="font-mono" style={{ color: "var(--text-faint)", fontSize: 12 }}>{formatDate(q.lastSubmittedAt)}</div>
+                    </a>
+                  );
+                })}
+                <div ref={sentinelRef} style={{ height: 1 }} />
+                {loadingMore && (
+                  <div style={{ padding: "20px", textAlign: "center" }}>
+                    <LoadingBlock label="Loading more…" />
+                  </div>
+                )}
+                {!hasMore && filtered.length > 0 && (
+                  <div style={{ padding: "16px 20px", textAlign: "center", color: "var(--text-faint)", fontSize: 12 }}>
+                    All {total} problems loaded
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>

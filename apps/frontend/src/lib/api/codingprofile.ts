@@ -3,6 +3,7 @@ import type {
   ChatResponse,
   CodingProfileResponse,
   HistoryResponse,
+  LeetCodeProgressResponse,
   QuestionsResponse,
   SyncEvent,
   UserProfile,
@@ -19,13 +20,22 @@ export function getCodingProfile(): Promise<CodingProfileResponse> {
   return apiFetch<CodingProfileResponse>("/codingprofile/");
 }
 
-export function getQuestions(params: { difficulty?: string; tag?: string; limit?: number } = {}): Promise<QuestionsResponse> {
+export function getQuestions(params: { difficulty?: string; tag?: string; limit?: number; offset?: number } = {}): Promise<QuestionsResponse> {
   const q = new URLSearchParams();
   if (params.difficulty && params.difficulty !== "all") q.set("difficulty", params.difficulty);
   if (params.tag) q.set("tag", params.tag);
   if (params.limit) q.set("limit", String(params.limit));
+  if (params.offset) q.set("offset", String(params.offset));
   const qs = q.toString();
   return apiFetch<QuestionsResponse>(`/codingprofile/questions${qs ? `?${qs}` : ""}`);
+}
+
+export function getLeetCodeProgress(params: { skip?: number; limit?: number } = {}): Promise<LeetCodeProgressResponse> {
+  const q = new URLSearchParams();
+  if (params.skip) q.set("skip", String(params.skip));
+  if (params.limit) q.set("limit", String(params.limit));
+  const qs = q.toString();
+  return apiFetch<LeetCodeProgressResponse>(`/leetcode/progress${qs ? `?${qs}` : ""}`);
 }
 
 export function getActivity(): Promise<ActivityResponse> {

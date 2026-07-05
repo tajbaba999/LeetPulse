@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { CheckIcon, LogoMark } from "@/components/icons";
-import { getCodingProfile, ingestRag, streamSync } from "@/lib/api/codingprofile";
+import { getCodingProfile, streamSync } from "@/lib/api/codingprofile";
 import { useAuth } from "@/lib/auth-context";
 
 const PENDING_LEETCODE_KEY = "leetpulse.pendingLeetcode";
@@ -52,11 +52,7 @@ export default function OnboardingPage() {
         setMsg(event.data.msg);
         if (event.type === "completed") {
           window.localStorage.removeItem(PENDING_LEETCODE_KEY);
-          setPhase("indexing");
-          setMsg("Indexing everything for AI chat…");
-          ingestRag()
-            .catch(() => {})
-            .finally(() => router.replace("/dashboard"));
+          router.replace("/dashboard");
         }
       }).catch((err) => {
         setError(err instanceof Error ? err.message : "Sync failed");

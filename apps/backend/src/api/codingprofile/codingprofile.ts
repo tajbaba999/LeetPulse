@@ -746,9 +746,10 @@ router.get("/activity", async (req, res) => {
 });
 
 // ── GET /codingprofile/questions ──
-// Returns all solved problems with topic tags from DB.
+// Returns solved problems with topic tags from DB.
+// Supports offset/limit pagination for lazy loading.
 // Falls back to problemsSolvedList JSON from latest history snapshot
-// when the LeetCodeProblem table is empty (e.g. sync skipped question fetch).
+// when the LeetCodeProblem table is empty.
 router.get("/questions", async (req, res) => {
   try {
     const user = req.user;
@@ -756,7 +757,8 @@ router.get("/questions", async (req, res) => {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 500);
+    const limit = Math.min(Math.max(Number(req.query.limit) || 30, 1), 100);
+    const offset = Math.max(Number(req.query.offset) || 0, 0);
     const difficulty = req.query.difficulty as string | undefined;
     const tag = req.query.tag as string | undefined;
 
@@ -808,11 +810,13 @@ router.get("/questions", async (req, res) => {
       });
     }
 
-    const sliced = filtered.slice(0, limit);
+    const sliced = filtered.slice(offset, offset + limit);
 
     res.status(200).json({
       total: filtered.length,
       limit,
+      offset,
+      hasMore: offset + limit < filtered.length,
       difficulty: difficulty ?? "all",
       tag: tag ?? "all",
       questions: sliced.map(p => ({
