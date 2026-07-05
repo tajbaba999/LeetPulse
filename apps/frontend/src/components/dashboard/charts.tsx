@@ -69,6 +69,15 @@ export function TrendChart({ values }: { values: number[] }) {
     );
   }
 
+  if (values.length === 1) {
+    return (
+      <div style={{ height: 180, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 8 }}>
+        <div style={{ fontWeight: 700, fontSize: 22, letterSpacing: "-0.02em" }}>{values[0].toLocaleString()}</div>
+        <div style={{ color: "var(--text-faint)", fontSize: 13 }}>1 snapshot — sync again to see a trend chart.</div>
+      </div>
+    );
+  }
+
   const min = Math.min(...values);
   const max = Math.max(...values);
   const range = max - min || 1;
