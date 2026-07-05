@@ -50,7 +50,7 @@ export default function OnboardingPage() {
         }
         setPct(event.data.pct);
         setMsg(event.data.msg);
-        if (event.type === "completed") {
+        if (event.type === "completed" || (event.type === "progress" && event.data.stage === "completed")) {
           window.localStorage.removeItem(PENDING_LEETCODE_KEY);
           router.replace("/dashboard");
         }
