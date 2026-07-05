@@ -4,7 +4,7 @@ import type { LeetCodeSyncResult } from "../../types/coding-profiles.js";
 import { getChangedChunks, saveChunkHashes } from "./chunk-hasher.js";
 import { buildChunks } from "./document-builder.js";
 import { embedChunks } from "./embeddings.js";
-import { upsertChunks } from "./pinecone.js";
+import { upsertChunks } from "./chroma.js";
 
 export type IngestProgressCallback = (stage: string, pct: number, msg: string) => void | Promise<void>;
 
@@ -42,16 +42,16 @@ export async function ingestRag(
   }
   await onProgress?.("embedding_done", 80, `Embedded ${withVectors.length} chunks`);
 
-  // Step 4: Upsert vectors to Pinecone
-  await onProgress?.("pinecone_started", 81, `Upserting ${withVectors.length} vectors to Pinecone (namespace: ${userId.slice(0, 8)}...)...`);
+  // Step 4: Upsert vectors to ChromaDB
+  await onProgress?.("chroma_started", 81, `Upserting ${withVectors.length} vectors to ChromaDB (user: ${userId.slice(0, 8)}...)...`);
   try {
     await upsertChunks(userId, withVectors);
   }
   catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    throw new Error(`Pinecone upsert failed: ${msg}`);
+    throw new Error(`ChromaDB upsert failed: ${msg}`);
   }
-  await onProgress?.("pinecone_done", 95, `Upserted ${withVectors.length} vectors to Pinecone`);
+  await onProgress?.("chroma_done", 95, `Upserted ${withVectors.length} vectors to ChromaDB`);
 
   // Step 5: Save chunk hashes for next diff
   await onProgress?.("hash_saving", 96, "Saving chunk hashes for future diffs...");

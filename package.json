@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "build": "turbo run build",
-    "dev": "turbo run dev",
+    "dev": "turbo run dev --ui tui",
     "lint": "turbo run lint",
     "check-types": "turbo run check-types",
     "db:generate": "pnpm --filter @leetplus/db db:generate",

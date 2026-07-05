@@ -9,6 +9,11 @@ const envSchema = z.object({
   LEETCODE_SESSION: z.string().optional(),
   LEETCODE_CSRF: z.string().optional(),
   GEMINI_API_KEY: z.string().optional(),
+  CHROMA_URL: z.string().default("http://localhost:8000"),
+  CHROMA_HOST: z.string().optional(),
+  CHROMA_API_KEY: z.string().optional(),
+  CHROMA_TENANT: z.string().optional(),
+  CHROMA_DATABASE: z.string().optional(),
 });
 
 try {

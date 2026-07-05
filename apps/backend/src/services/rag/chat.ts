@@ -1,7 +1,22 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 import { embedChunks } from "./embeddings.js";
-import { queryChunks } from "./pinecone.js";
+import { queryChunks } from "./chroma.js";
+
+async function retry<T>(fn: () => Promise<T>, retries = 3): Promise<T> {
+  try {
+    return await fn();
+  }
+  catch (err) {
+    if (retries <= 0) throw err;
+    const msg = err instanceof Error ? err.message : "";
+    if (msg.includes("ECONNRESET") || msg.includes("timeout") || msg.includes("socket hang up")) {
+      await new Promise(r => setTimeout(r, 1000));
+      return retry(fn, retries - 1);
+    }
+    throw err;
+  }
+}
 
 let _genAI: GoogleGenerativeAI | null = null;
 function getGenAI(): GoogleGenerativeAI {
@@ -38,8 +53,8 @@ async function buildContext(
   username: string,
   question: string,
 ): Promise<{ context: string; sources: string[] }> {
-  const [questionChunk] = await embedChunks([{ id: "query", text: question, type: "summary" }]);
-  const matches = await queryChunks(userId, questionChunk.vector, 8);
+  const [questionChunk] = await retry(() => embedChunks([{ id: "query", text: question, type: "summary" }]));
+  const matches = await retry(() => queryChunks(userId, questionChunk.vector, 8));
   const context = matches.map(m => m.text).join("\n\n---\n\n");
   const sources = matches.map(m => m.id);
   return { context, sources };
@@ -69,13 +84,14 @@ export async function chat(
 ): Promise<ChatResult> {
   const { context, sources } = await buildContext(userId, username, question);
 
-  // ── Gemini chat (free tier: gemini-2.0-flash) ──
-  const model = getGenAI().getGenerativeModel({ model: "gemini-2.5-flash" });
-  const result = await model.generateContent({
-    contents: [
-      { role: "user", parts: [{ text: `${buildSystemPrompt(username, context)}\n\nUser question: ${question}` }] },
-    ],
-    generationConfig: { temperature: 0.3, maxOutputTokens: 4096 },
+  const result = await retry(async () => {
+    const model = getGenAI().getGenerativeModel({ model: "gemini-2.5-flash" });
+    return model.generateContent({
+      contents: [
+        { role: "user", parts: [{ text: `${buildSystemPrompt(username, context)}\n\nUser question: ${question}` }] },
+      ],
+      generationConfig: { temperature: 0.3, maxOutputTokens: 4096 },
+    });
   });
 
   return {
@@ -108,13 +124,14 @@ export async function* chatStream(
 
   yield { type: "sources", content: "", sources };
 
-  // ── Gemini streaming ──
-  const model = getGenAI().getGenerativeModel({ model: "gemini-2.5-flash" });
-  const stream = await model.generateContentStream({
-    contents: [
-      { role: "user", parts: [{ text: `${buildSystemPrompt(username, context)}\n\nUser question: ${question}` }] },
-    ],
-    generationConfig: { temperature: 0.3, maxOutputTokens: 4096 },
+  const stream = await retry(async () => {
+    const model = getGenAI().getGenerativeModel({ model: "gemini-2.5-flash" });
+    return model.generateContentStream({
+      contents: [
+        { role: "user", parts: [{ text: `${buildSystemPrompt(username, context)}\n\nUser question: ${question}` }] },
+      ],
+      generationConfig: { temperature: 0.3, maxOutputTokens: 4096 },
+    });
   });
 
   for await (const chunk of stream.stream) {

@@ -6,8 +6,8 @@
   "type": "module",
   "main": "src/index.ts",
   "scripts": {
-    "start": "node --env-file=../../.env dist/src/index.js",
-    "dev": "tsx watch --env-file=../../.env src/index.ts",
+    "start": "node --env-file=.env dist/src/index.js",
+    "dev": "tsx watch --env-file=.env src/index.ts",
     "build": "tsc",
     "lint": "eslint --fix src test",
     "test": "vitest run",
@@ -16,7 +16,7 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@leetplus/db": "workspace:*",
-    "@pinecone-database/pinecone": "^8.0.0",
+    "chromadb": "^1.9.2",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
     "axios": "^1.18.1",
