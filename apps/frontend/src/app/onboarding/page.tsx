@@ -23,7 +23,7 @@ const STAGES: { label: string; threshold: number }[] = [
   { label: "Done", threshold: 100 },
 ];
 
-type Phase = "need-username" | "syncing" | "indexing" | "error";
+type Phase = "syncing" | "indexing" | "error";
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -32,7 +32,6 @@ export default function OnboardingPage() {
   const [pct, setPct] = useState(0);
   const [msg, setMsg] = useState("Starting sync…");
   const [error, setError] = useState<string | null>(null);
-  const [usernameInput, setUsernameInput] = useState("");
   const startedRef = useRef(false);
 
   const runSync = useCallback(
@@ -79,17 +78,13 @@ export default function OnboardingPage() {
         runSync(pending);
         return;
       }
-      // No stashed username — check if the account already has one linked.
+      // No stashed username — use the linked profile if present, otherwise
+      // the backend falls back to LEETCODE_USERNAME from its .env.
       try {
         const profile = await getCodingProfile();
-        if (profile.profiles?.leetcode) {
-          runSync(profile.profiles.leetcode);
-        } else {
-          setPhase("need-username");
-        }
+        runSync(profile.profiles?.leetcode ?? undefined);
       } catch {
-        // No coding profile yet — ask for a username.
-        setPhase("need-username");
+        runSync(undefined);
       }
     })();
   }, [status, runSync]);
@@ -97,40 +92,6 @@ export default function OnboardingPage() {
   const currentStageIndex = STAGES.findIndex((s) => pct < s.threshold);
   const activeIndex = currentStageIndex === -1 ? STAGES.length - 1 : currentStageIndex;
   const stageLabel = phase === "indexing" ? "Indexing for AI chat" : STAGES[activeIndex]?.label ?? "Working…";
-
-  if (phase === "need-username") {
-    return (
-      <CenteredCard>
-        <div style={{ padding: "28px 32px" }}>
-          <div style={{ fontWeight: 700, fontSize: 20, marginBottom: 8 }}>Link your LeetCode</div>
-          <div style={{ fontSize: 13, color: "var(--text-dim)", marginBottom: 20 }}>
-            Enter your LeetCode username so we can pull your submissions and stats.
-          </div>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (usernameInput.trim()) runSync(usernameInput.trim());
-            }}
-            style={{ display: "flex", gap: 10 }}
-          >
-            <input
-              value={usernameInput}
-              onChange={(e) => setUsernameInput(e.target.value)}
-              placeholder="ada_codes"
-              autoFocus
-              style={{ flex: 1, padding: "12px 14px", background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: 10, color: "var(--text)", fontSize: 14, outline: "none", fontFamily: "inherit" }}
-            />
-            <button
-              type="submit"
-              style={{ padding: "12px 18px", background: "var(--accent)", color: "white", fontWeight: 700, fontSize: 13, border: "none", borderRadius: 10, cursor: "pointer", fontFamily: "inherit" }}
-            >
-              Start sync
-            </button>
-          </form>
-        </div>
-      </CenteredCard>
-    );
-  }
 
   return (
     <CenteredCard>
