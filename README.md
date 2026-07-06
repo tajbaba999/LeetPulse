@@ -4,7 +4,7 @@ An AI-powered LeetCode analytics platform that syncs your coding profile, visual
 
 ## Demo
 
-[![Watch the demo](https://img.shields.io/badge/Watch-Demo-red?style=for-the-badge&logo=youtube)](#)
+https://github.com/user-attachments/assets/bdb04e4e-7415-4aad-a99f-9c1ddf6b7950
 
 
 ## What it does
