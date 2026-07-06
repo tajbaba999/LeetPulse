@@ -4,7 +4,8 @@ An AI-powered LeetCode analytics platform that syncs your coding profile, visual
 
 ## Demo
 
-https://github.com/user-attachments/assets/bdb04e4e-7415-4aad-a99f-9c1ddf6b7950
+[![Watch the demo](https://img.shields.io/badge/Watch-Demo-red?style=for-the-badge&logo=youtube)](#)
+
 
 ## What it does
 
@@ -119,9 +120,9 @@ These must be set or the server won't start:
 
 | Variable | Required? | Description |
 |----------|-----------|-------------|
-| `LEETCODE_USERNAME` | Optional | Your LeetCode username — used as default if not provided in requests |
-| `LEETCODE_SESSION` | Optional | Session cookie from LeetCode — required for the Questions page (authenticated API) |
-| `LEETCODE_CSRF` | Optional | CSRF token from LeetCode — required alongside `LEETCODE_SESSION` |
+| `LEETCODE_USERNAME` | required | Your LeetCode username — used as default if not provided in requests |
+| `LEETCODE_SESSION` | required | Session cookie from LeetCode — required for the Questions page (authenticated API) |
+| `LEETCODE_CSRF` | required | CSRF token from LeetCode — required alongside `LEETCODE_SESSION` |
 
 > Without LeetCode cookies, the Questions page won't load. All other features (sync, chat, dashboard) work without them.
 
