@@ -1,26 +1,25 @@
-# LeetPulse
+# 🚀 LeetPulse
 
 An AI-powered LeetCode analytics platform that syncs your coding profile, visualizes performance trends, and uses RAG to answer personalized questions about your strengths, weaknesses, and growth areas.
 
-## Demo
+## 🎬 Demo
 
 https://github.com/user-attachments/assets/bdb04e4e-7415-4aad-a99f-9c1ddf6b7950
 
-
-## What it does
+## 💡 What it does
 
 LeetPulse connects to your LeetCode account, syncs your entire solving history, and builds an AI chatbot that knows everything about your coding journey. Ask it anything — "What are my weakest topics?", "How many hard problems have I solved?", or "Give me a complete analysis" — and get answers grounded in your actual data.
 
-### Features
+### ✨ Features
 
-- **AI Chatbot** — RAG-powered assistant that answers questions about your LeetCode performance using your real data
-- **Dashboard** — Stats cards, trend charts, difficulty breakdown, language distribution, and skill coverage
-- **Questions** — Infinite-scroll problem list with difficulty and tag filters
-- **Activity** — GitHub-style submission heatmap, weakness radar chart, and topic-wise heat map
-- **Profile** — Historical snapshots showing your growth over time
-- **Sync** — Real-time SSE-powered sync with 9-stage progress tracking
+- 🤖 **AI Chatbot** — RAG-powered assistant that answers questions about your LeetCode performance using your real data
+- 📊 **Dashboard** — Stats cards, trend charts, difficulty breakdown, language distribution, and skill coverage
+- 📝 **Questions** — Infinite-scroll problem list with difficulty and tag filters
+- 🔥 **Activity** — GitHub-style submission heatmap, weakness radar chart, and topic-wise heat map
+- 👤 **Profile** — Historical snapshots showing your growth over time
+- 🔄 **Sync** — Real-time SSE-powered sync with 9-stage progress tracking
 
-## Tech Stack
+## 🛠️ Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
@@ -31,15 +30,15 @@ LeetPulse connects to your LeetCode account, syncs your entire solving history, 
 | **AI/RAG** | Google Gemini (embeddings + chat), ChromaDB (vector DB) |
 | **Monitoring** | Prometheus, Loki, Grafana |
 
-## Getting Started
+## 🚀 Getting Started
 
-### Prerequisites
+### 📋 Prerequisites
 
 - [Node.js](https://nodejs.org/) 22+
 - [pnpm](https://pnpm.io/) 9+
 - [Docker](https://www.docker.com/) (for Docker setup)
 
-### Option 1: Docker (Recommended)
+### 🐳 Option 1: Docker (Recommended)
 
 ```bash
 git clone https://github.com/tajbaba999/Grindlytics.git
@@ -75,7 +74,7 @@ docker compose logs -f backend
 docker compose down
 ```
 
-### Option 2: Local Development
+### 💻 Option 2: Local Development
 
 ```bash
 git clone https://github.com/tajbaba999/Grindlytics.git
@@ -88,11 +87,11 @@ pnpm run dev
 - **Frontend:** http://localhost:3001
 - **Backend API:** http://localhost:3000
 
-## Environment Variables
+## 🔐 Environment Variables
 
 All environment variables go in `apps/backend/.env`.
 
-### Required
+### ✅ Required
 
 These must be set or the server won't start:
 
@@ -102,7 +101,7 @@ These must be set or the server won't start:
 | `JWT_ACCESS_SECRET` | Secret for signing access tokens (15 min expiry) | Any random 64-char hex string |
 | `JWT_REFRESH_SECRET` | Secret for signing refresh tokens (7 day expiry) | Any random 64-char hex string |
 
-### AI / RAG
+### 🤖 AI / RAG
 
 | Variable | Required? | Description |
 |----------|-----------|-------------|
@@ -116,30 +115,30 @@ These must be set or the server won't start:
 > If `CHROMA_API_KEY` + `CHROMA_TENANT` are set → uses ChromaDB Cloud.
 > If not → falls back to local Docker ChromaDB at `CHROMA_URL`.
 
-### LeetCode
+### 💻 LeetCode
 
 | Variable | Required? | Description |
 |----------|-----------|-------------|
-| `LEETCODE_USERNAME` | required | Your LeetCode username — used as default if not provided in requests |
-| `LEETCODE_SESSION` | required | Session cookie from LeetCode — required for the Questions page (authenticated API) |
-| `LEETCODE_CSRF` | required | CSRF token from LeetCode — required alongside `LEETCODE_SESSION` |
+| `LEETCODE_USERNAME` | Required | Your LeetCode username — used as default if not provided in requests |
+| `LEETCODE_SESSION` | Required | Session cookie from LeetCode — required for the Questions page (authenticated API) |
+| `LEETCODE_CSRF` | Required | CSRF token from LeetCode — required alongside `LEETCODE_SESSION` |
 
 > Without LeetCode cookies, the Questions page won't load. All other features (sync, chat, dashboard) work without them.
 
-### Redis
+### ⚡ Redis
 
 | Variable | Required? | Description |
 |----------|-----------|-------------|
 | `REDIS_URL` | Optional | Redis connection string — defaults to `redis://localhost:6379`. Only needed for BullMQ background job queues |
 
-### Server
+### ⚙️ Server
 
 | Variable | Required? | Description |
 |----------|-----------|-------------|
 | `NODE_ENV` | Optional | `development` (default), `production`, or `test` |
 | `PORT` | Optional | Backend port — defaults to `3000` |
 
-### How to get LeetCode cookies
+### 🍪 How to get LeetCode cookies
 
 1. Log in to [leetcode.com](https://leetcode.com)
 2. Open DevTools → Application → Cookies → `https://leetcode.com`
@@ -153,18 +152,18 @@ LEETCODE_CSRF=<paste csrftoken value>
 
 > These cookies expire. If the Questions page stops working, grab fresh ones.
 
-## API Testing
+## 🧪 API Testing
 
 The project includes a [Bruno](https://www.usebruno.com/) API collection at `apps/backend/bruno/` with pre-configured requests for every endpoint.
 
-### How to use
+### 📖 How to use
 
 1. Open Bruno
 2. Import the collection from `apps/backend/bruno/`
 3. Select the **Localhost** environment
 4. Start making requests
 
-### What's included
+### 📂 What's included
 
 | Folder | Endpoints |
 |--------|-----------|
@@ -173,7 +172,7 @@ The project includes a [Bruno](https://www.usebruno.com/) API collection at `app
 | **LeetCode** | Profile, Progress, Contests, Skill Stats, Language Stats, Question Progress, Session Progress, Calendar |
 | **RAG** | Ingest, Chat |
 
-## Project Structure
+## 📁 Project Structure
 
 ```
 LeetPulse/
@@ -195,7 +194,7 @@ LeetPulse/
 └── turbo.json
 ```
 
-## RAG Pipeline
+## 🧠 RAG Pipeline
 
 1. **Build Chunks** — Generates ~12 summary chunks (skills, weaknesses, contest, calendar) + 1 chunk per solved problem
 2. **Diff Hashes** — SHA-256 hashing for incremental updates (only re-indexes changed data)
@@ -203,6 +202,3 @@ LeetPulse/
 4. **Upsert** — Store vectors in ChromaDB (user-scoped)
 5. **Chat** — Embed question → query ChromaDB for top-8 relevant chunks → build context → Gemini 2.5 Flash response
 
-## License
-
-MIT
